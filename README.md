@@ -84,17 +84,27 @@ The system now incorporates computer vision algorithms to detect key tornadic si
 1. **Mesocyclone Detection**:
    - Analyzes velocity data to identify rotating storm structures
    - Calculates rotation strength, diameter, and location
-   - Provides risk assessment based on mesocyclone characteristics
+   - Optimized for increased sensitivity to weaker rotation signatures
+   - Uses velocity gradient analysis with lower thresholds to detect early stage rotation
 
 2. **Hook Echo Detection**:
    - Identifies hook-shaped appendages in reflectivity data
    - Analyzes contour curvature and convexity
+   - Enhanced detection of smaller and less defined hook echoes
    - Calculates confidence scores for detected hook echoes
 
-3. **Combined Risk Assessment**:
-   - Evaluates the presence of both patterns to determine overall risk level
+3. **Weak Rotation Detection**:
+   - Detects subtle rotation patterns in velocity data
+   - Provides early warnings for developing mesocyclones
+   - Flags rotation signatures below mesocyclone threshold but still potentially significant
+
+4. **Combined Risk Assessment**:
+   - Evaluates the presence of multiple patterns to determine overall risk level
    - Assigns risk categories: none, low, moderate, high, or extreme
+   - Uses lower thresholds for NWS alert validation
    - Provides human-readable summaries of detected patterns
+
+The pattern detection system is calibrated to favor higher sensitivity (more potential false positives) over missing actual tornado signatures, as this better aligns with the system's safety-oriented objectives.
 
 ## Installation & Setup
 

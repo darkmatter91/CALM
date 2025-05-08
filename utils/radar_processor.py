@@ -11,9 +11,9 @@ class RadarProcessor:
     
     def __init__(self):
         """Initialize the radar processor."""
-        self.reflectivity_threshold = 40  # dBZ threshold for significant precipitation 
-        self.velocity_threshold = 15      # m/s threshold for strong rotation
-        self.hook_reflectivity_threshold = 35  # dBZ threshold for hook echo detection
+        self.reflectivity_threshold = 35  # Reduced from 40 dBZ
+        self.velocity_threshold = 12      # Reduced from 15 m/s
+        self.hook_reflectivity_threshold = 30  # Reduced from 35 dBZ
         
     def process_radar_data(self, radar_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process radar data and detect weather features.
@@ -93,12 +93,12 @@ class RadarProcessor:
         gradient_y, gradient_x = np.gradient(smoothed)
         rotation = gradient_x - gradient_y  # Simplified rotation calculation
         
-        # Find regions of strong rotation
-        rotation_threshold = 0.2
+        # Find regions of strong rotation - LOWERED THRESHOLD
+        rotation_threshold = 0.15  # Reduced from 0.2
         rotation_mask = np.abs(rotation) > rotation_threshold
         
         # Apply morphological operations to clean up the mask
-        cleaned_mask = morphology.remove_small_objects(rotation_mask, min_size=5)
+        cleaned_mask = morphology.remove_small_objects(rotation_mask, min_size=4)  # Reduced from 5
         
         # Label connected regions
         labeled_mask, num_features = ndimage.label(cleaned_mask)
@@ -132,11 +132,11 @@ class RadarProcessor:
             max_location = locations[max_idx]
             max_diameter = diameters[max_idx]
             
-            # Normalize strength to 0-1 range
-            normalized_strength = min(max_strength / 0.5, 1.0)
+            # Normalize strength to 0-1 range with lower threshold for detection
+            normalized_strength = min(max_strength / 0.4, 1.0)  # Reduced from 0.5
             
             return {
-                'detected': normalized_strength > 0.5,
+                'detected': normalized_strength > 0.4,  # Reduced from 0.5
                 'strength': float(normalized_strength),
                 'location': (float(max_location[1]), float(max_location[0])),  # Convert to lon, lat format
                 'diameter': float(max_diameter * 100),  # Scale to realistic diameter in meters
@@ -167,7 +167,7 @@ class RadarProcessor:
         binary = reflectivity_scan > self.hook_reflectivity_threshold
         
         # Clean up the binary image
-        binary = morphology.remove_small_objects(binary, min_size=10)
+        binary = morphology.remove_small_objects(binary, min_size=8)  # Reduced from 10
         binary = morphology.binary_closing(binary, morphology.disk(2))
         
         # Label connected storm cells
@@ -183,8 +183,8 @@ class RadarProcessor:
         for i in range(1, num_cells + 1):
             cell = labeled == i
             
-            # Skip small cells
-            if np.sum(cell) < 20:
+            # Skip small cells - reduced minimum size
+            if np.sum(cell) < 15:  # Reduced from 20
                 continue
                 
             # Get cell contour
@@ -207,8 +207,8 @@ class RadarProcessor:
             # Curvature calculation
             curvature = np.abs(ddx * dy - dx * ddy) / (dx**2 + dy**2)**1.5
             
-            # Look for high curvature regions (potential hooks)
-            high_curvature = curvature > np.percentile(curvature, 90)
+            # Look for high curvature regions (potential hooks) - lower percentile threshold
+            high_curvature = curvature > np.percentile(curvature, 85)  # Reduced from 90
             curvature_regions, num_regions = ndimage.label(high_curvature)
             
             # Calculate cell convexity - hook echoes typically create concavities
@@ -232,11 +232,11 @@ class RadarProcessor:
             max_score = hook_scores[max_idx]
             max_location = hook_locations[max_idx]
             
-            # Normalize score to 0-1 range
-            confidence = min(max_score / 0.3, 1.0)
+            # Normalize score to 0-1 range with lower threshold
+            confidence = min(max_score / 0.25, 1.0)  # Reduced from 0.3
             
             return {
-                'detected': confidence > 0.6,
+                'detected': confidence > 0.5,  # Reduced from 0.6
                 'confidence': float(confidence),
                 'location': (float(max_location[1]), float(max_location[0]))  # Convert to lon, lat format
             }
