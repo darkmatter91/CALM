@@ -6,8 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: calm-tornado-prediction
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - ./:/app
       - calm_data:/app/data
@@ -28,6 +28,28 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - calm-network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: calm-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - calm-network
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl
+
+networks:
+  calm-network:
+    driver: bridge
 
 volumes:
   calm_data:

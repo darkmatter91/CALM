@@ -226,12 +226,12 @@
 
         /* AI prediction styles */
         .ai-prediction-polygon {
-            animation: pulse-opacity 2s infinite alternate;
             transition: all 0.3s ease;
+            opacity: 0.5;
         }
         
         .ai-prediction-circle {
-            animation: pulse-size 3s infinite alternate;
+            /* No animation for AI predictions */
         }
         
         @keyframes pulse-opacity {
@@ -1227,7 +1227,7 @@
                 <!-- Active Predictions Panel -->
                 <div class="predictions-panel">
                     <div class="predictions-header">
-                        <span><i class="fa-solid fa-robot me-1"></i> AI Predictions</span>
+                        <span><i class="fa-solid fa-robot me-1"></i> AI Model Predictions</span>
                         <span class="badge bg-primary" id="prediction-count">0 active</span>
                     </div>
                     <div class="predictions-body" id="predictionsContainer">
@@ -1246,8 +1246,8 @@
                         <!-- No predictions message - will be shown when no predictions are found -->
                         <div id="no-predictions" class="text-center py-3 text-muted">
                             <i class="fa-solid fa-check-circle mb-2" style="font-size: 1.5rem"></i>
-                            <div>No active predictions</div>
-                            <div class="small mt-2">There are currently no tornado predictions for the US.</div>
+                            <div>No active AI model predictions</div>
+                            <div class="small mt-2">There are currently no AI tornado predictions for the US.</div>
                         </div>
                         
                         <!-- Predictions list - will be populated via JS -->
@@ -1403,35 +1403,40 @@
                     // Process and display the predictions
                     const predictions = data.predictions || [];
                     
-                    // Update the prediction count
-                    document.getElementById('prediction-count').textContent = predictions.length + " active";
+                    // Filter to only include AI predictions for the AI predictions panel
+                    const aiPredictions = predictions.filter(prediction => prediction.is_ai_prediction === true);
                     
-                    if (predictions.length === 0) {
+                    // Update the prediction count with only AI predictions
+                    document.getElementById('prediction-count').textContent = aiPredictions.length + " active";
+                    
+                    if (aiPredictions.length === 0) {
                         document.getElementById('no-predictions').style.display = 'block';
                         document.getElementById('predictions-list').style.display = 'none';
-                        return;
                     } else {
                         document.getElementById('no-predictions').style.display = 'none';
                         document.getElementById('predictions-list').style.display = 'block';
                     }
                     
-                    // Sort predictions by risk level (highest first)
-                    predictions.sort((a, b) => {
+                    // Add all predictions to map (both AI and NWS)
+                    predictions.forEach(prediction => {
+                        // Add the prediction to the map
+                        addPredictionToMap(prediction);
+                    });
+                    
+                    // Sort AI predictions by risk level (highest first)
+                    aiPredictions.sort((a, b) => {
                         const riskOrder = {'extreme': 4, 'high': 3, 'moderate': 2, 'low': 1};
                         return riskOrder[b.risk_level] - riskOrder[a.risk_level];
                     });
                     
-                    // Create the predictions list
+                    // Create the predictions list with only AI predictions
                     const predictionsList = document.getElementById('predictions-list');
                     predictionsList.innerHTML = '';
                     
-                    predictions.forEach(prediction => {
+                    aiPredictions.forEach(prediction => {
                         // Create the prediction card
                         const card = createPredictionCard(prediction);
                         predictionsList.appendChild(card);
-                        
-                        // Add the prediction to the map
-                        addPredictionToMap(prediction);
                     });
                     
                     // Update the legend with the current map items
@@ -1442,7 +1447,7 @@
                     console.error('Error fetching predictions:', error);
                     document.getElementById('prediction-count').textContent = '0 active';
                     document.getElementById('no-predictions').style.display = 'block';
-                    document.getElementById('no-predictions').innerHTML = '<i class="fa-solid fa-exclamation-triangle mb-2" style="font-size: 1.5rem; color: #dc3545;"></i><div>Error loading predictions</div><div class="small mt-2">Please try again later.</div>';
+                    document.getElementById('no-predictions').innerHTML = '<i class="fa-solid fa-exclamation-triangle mb-2" style="font-size: 1.5rem; color: #dc3545;"></i><div>Error loading AI predictions</div><div class="small mt-2">Please try again later.</div>';
                     document.getElementById('predictions-list').style.display = 'none';
                 });
         }
@@ -1545,11 +1550,6 @@
             }
             card.style.backgroundColor = riskColor;
             
-            // Source indicator (NWS or AI)
-            const sourceIcon = prediction.is_ai_prediction ? 
-                '<i class="fa-solid fa-robot me-1"></i>' : 
-                '<i class="fa-solid fa-triangle-exclamation me-1"></i>';
-            
             // Create risk badge
             const riskBadgeClass = `prediction-badge ${prediction.risk_level === 'low' ? 'low' : 
                                               prediction.risk_level === 'moderate' ? 'moderate' : 'high'}`;
@@ -1560,7 +1560,7 @@
                     <span class="${riskBadgeClass}">${prediction.risk_level.toUpperCase()}</span>
                 </div>
                 <div class="prediction-details">
-                    <div>${sourceIcon} ${prediction.is_ai_prediction ? 'AI Prediction' : 'NWS Alert'}</div>
+                    <div><i class="fa-solid fa-robot me-1"></i> AI Model</div>
                     <div>${prediction.formation_chance || prediction.chance || 0}% chance</div>
                 </div>
             `;
@@ -1617,8 +1617,10 @@
                 fillOpacity: 0.8
             }).addTo(map);
             
-            // Add pulse animation class
-            marker._path && marker._path.classList.add('pulsing-circle');
+            // Add pulse animation class only to non-AI predictions
+            if (marker._path && !prediction.is_ai_prediction) {
+                marker._path.classList.add('pulsing-circle');
+            }
             
             // Store prediction ID on marker for reference
             marker.predictionId = prediction.id;
@@ -1635,7 +1637,7 @@
                     <div class="popup-risk" style="background-color: ${color};">${prediction.risk_level.toUpperCase()} RISK</div>
                     <div class="popup-title">${prediction.name || prediction.location}</div>
                     <div class="popup-text"><strong>Formation Chance:</strong> ${prediction.formation_chance || prediction.chance || 0}%</div>
-                    <div class="popup-text"><strong>Source:</strong> ${prediction.is_ai_prediction ? 'AI Prediction' : 'NWS Alert'}</div>
+                    ${prediction.is_ai_prediction ? '' : '<div class="popup-text"><strong>Source:</strong> NWS Alert</div>'}
                     
                     <div class="popup-subtitle">Weather Metrics:</div>
                     <div class="popup-text"><strong>CAPE:</strong> ${prediction.cape || 'N/A'} J/kg</div>
@@ -1661,6 +1663,16 @@
                             weight: 2
                         }
                     }).addTo(map);
+                    
+                    // Add class for AI predictions
+                    if (prediction.is_ai_prediction && polygon._layers) {
+                        // Apply classes to all layers in the GeoJSON
+                        Object.values(polygon._layers).forEach(layer => {
+                            if (layer._path) {
+                                layer._path.classList.add('ai-prediction-polygon');
+                            }
+                        });
+                    }
                     
                     // Add to polygons array
                     polygons.push(polygon);
@@ -1690,6 +1702,11 @@
             
             if (noPredictions) {
                 noPredictions.style.display = 'block';
+                noPredictions.innerHTML = `
+                    <i class="fa-solid fa-check-circle mb-2" style="font-size: 1.5rem"></i>
+                    <div>No active AI model predictions</div>
+                    <div class="small mt-2">There are currently no AI tornado predictions for the US.</div>
+                `;
             }
             
             if (predictionsList) {

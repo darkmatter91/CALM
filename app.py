@@ -25,6 +25,7 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 import io
 from PIL import Image
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables
 load_dotenv()
@@ -281,14 +282,12 @@ def find_closest_tornado(lat, lon, tornado_reports):
     return closest_report, min_distance
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """Calculate the distance between two points using Haversine formula."""
-    # Convert latitude and longitude to radians
-    lat1_rad = math.radians(lat1)
-    lon1_rad = math.radians(lon1)
-    lat2_rad = math.radians(lat2)
-    lon2_rad = math.radians(lon2)
+    """Calculate the great circle distance between two points on the earth (specified in decimal degrees)"""
+    # Convert decimal degrees to radians
+    lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
+    lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
     
-    # Earth radius in kilometers
+    # Radius of earth in kilometers
     R = 6371
     
     # Haversine formula
@@ -302,6 +301,11 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 # Initialize app
 app = Flask(__name__)
+
+# Configure app for running behind proxy
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 weather_predictor = WeatherPredictor()
 radar_processor = RadarProcessor()
 
