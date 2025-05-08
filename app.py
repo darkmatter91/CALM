@@ -41,6 +41,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize components
+radar_processor = RadarProcessor()
+weather_predictor = WeatherPredictor()
+try:
+    tornado_ai = TornadoAI()
+except Exception as e:
+    logger.error(f"Error initializing TornadoAI: {e}")
+    tornado_ai = None
+
 # Database setup for prediction logging
 DB_PATH = "tornado_predictions.db"
 
@@ -1489,9 +1498,53 @@ def process_radar():
         if not radar_data:
             return jsonify({'error': 'Missing radar data'}), 400
             
+        # Process radar data to detect patterns
         processed_data = radar_processor.process_radar_data(radar_data)
-        return jsonify(processed_data)
+        
+        # Enhance results with interpretation
+        enhanced_results = {
+            "patterns_detected": [],
+            "risk_level": "none",
+            "details": processed_data
+        }
+        
+        # Add detected patterns to the list
+        if processed_data['mesocyclone']['detected']:
+            enhanced_results["patterns_detected"].append("mesocyclone")
+            
+        if processed_data['hook_echo']['detected']:
+            enhanced_results["patterns_detected"].append("hook_echo")
+            
+        # Determine overall risk level
+        if processed_data['mesocyclone']['detected'] and processed_data['hook_echo']['detected']:
+            # Both detected - highest risk
+            if processed_data['mesocyclone']['strength'] > 0.7 and processed_data['hook_echo']['confidence'] > 0.7:
+                enhanced_results["risk_level"] = "extreme"
+            else:
+                enhanced_results["risk_level"] = "high"
+        elif processed_data['mesocyclone']['detected']:
+            # Only mesocyclone detected
+            if processed_data['mesocyclone']['strength'] > 0.7:
+                enhanced_results["risk_level"] = "high"
+            else:
+                enhanced_results["risk_level"] = "moderate"
+        elif processed_data['hook_echo']['detected']:
+            # Only hook echo detected
+            if processed_data['hook_echo']['confidence'] > 0.7:
+                enhanced_results["risk_level"] = "moderate"
+            else:
+                enhanced_results["risk_level"] = "low"
+                
+        # Add a human-readable summary
+        pattern_text = " and ".join(enhanced_results["patterns_detected"])
+        if pattern_text:
+            enhanced_results["summary"] = f"Detected {pattern_text} - {enhanced_results['risk_level']} risk level"
+        else:
+            enhanced_results["summary"] = "No tornadic signatures detected"
+            
+        return jsonify(enhanced_results)
     except Exception as e:
+        logger.error(f"Error processing radar data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/radar/live', methods=['GET'])
@@ -2795,6 +2848,81 @@ def get_weather_alerts():
             'count': 0,
             'timestamp': datetime.now(timezone.utc).isoformat()
         })
+
+@app.route('/api/radar/analyze', methods=['POST'])
+def analyze_radar_patterns():
+    """Analyze radar data for mesocyclones and hook echoes.
+    
+    Expected JSON payload:
+    {
+        "reflectivity": [[...]], # 2D or 3D array of reflectivity data
+        "velocity": [[...]], # 2D or 3D array of velocity data
+        "spectrum_width": [[...]], # Optional 2D or 3D array of spectrum width data
+        "timestamps": ["2023-06-01T12:00:00Z", ...] # Optional timestamps for each frame
+    }
+    
+    Returns:
+        JSON with detected patterns and their properties
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        # Validate inputs
+        if 'reflectivity' not in data or 'velocity' not in data:
+            return jsonify({"error": "Missing required radar data fields"}), 400
+            
+        # Process radar data to detect patterns
+        results = radar_processor.process_radar_data(data)
+        
+        # Enhance results with interpretation
+        enhanced_results = {
+            "patterns_detected": [],
+            "risk_level": "none",
+            "details": results
+        }
+        
+        # Add detected patterns to the list
+        if results['mesocyclone']['detected']:
+            enhanced_results["patterns_detected"].append("mesocyclone")
+            
+        if results['hook_echo']['detected']:
+            enhanced_results["patterns_detected"].append("hook_echo")
+            
+        # Determine overall risk level
+        if results['mesocyclone']['detected'] and results['hook_echo']['detected']:
+            # Both detected - highest risk
+            if results['mesocyclone']['strength'] > 0.7 and results['hook_echo']['confidence'] > 0.7:
+                enhanced_results["risk_level"] = "extreme"
+            else:
+                enhanced_results["risk_level"] = "high"
+        elif results['mesocyclone']['detected']:
+            # Only mesocyclone detected
+            if results['mesocyclone']['strength'] > 0.7:
+                enhanced_results["risk_level"] = "high"
+            else:
+                enhanced_results["risk_level"] = "moderate"
+        elif results['hook_echo']['detected']:
+            # Only hook echo detected
+            if results['hook_echo']['confidence'] > 0.7:
+                enhanced_results["risk_level"] = "moderate"
+            else:
+                enhanced_results["risk_level"] = "low"
+                
+        # Add a human-readable summary
+        pattern_text = " and ".join(enhanced_results["patterns_detected"])
+        if pattern_text:
+            enhanced_results["summary"] = f"Detected {pattern_text} - {enhanced_results['risk_level']} risk level"
+        else:
+            enhanced_results["summary"] = "No tornadic signatures detected"
+            
+        return jsonify(enhanced_results)
+        
+    except Exception as e:
+        logger.error(f"Error analyzing radar patterns: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
