@@ -1547,7 +1547,21 @@
             
             // Initialize the countdown timer
             updateTimer();
+            
+            // Add reset view button
+            createResetViewButton();
         });
+        
+        // Ensure the map is centered on the US after all content is loaded
+        window.onload = function() {
+            // Short timeout to make sure the map is fully loaded
+            setTimeout(() => {
+                if (map) {
+                    map.setView([39.8283, -98.5795], 4);
+                    console.log('Reset map view to US');
+                }
+            }, 500);
+        };
         
         function initMap() {
             // Create a Leaflet map centered on the US
@@ -2132,10 +2146,12 @@
                     // Bind popup to polygon for both AI and NWS alerts
                     polygon.bindPopup(popupContent);
                     
-                    // Add to polygons array
+                    // Add to polygons array for tracking
                     polygons.push(polygon);
+                    
+                    // Removed auto-zooming to keep US view on page load
                 } catch (e) {
-                    console.error('Error adding polygon to map:', e);
+                    console.error('Error adding alert polygon to map:', e);
                 }
             }
         }
@@ -2181,6 +2197,11 @@
         function loadWeatherAlerts() {
             const alertsContainer = document.getElementById('alertsContainer');
             
+            // Store current filter selections before refresh
+            const currentFilters = Array.from(
+                document.querySelectorAll('.alerts-filters input[type="checkbox"]:checked')
+            ).map(checkbox => checkbox.value);
+            
             // Show loading state
             alertsContainer.innerHTML = `
                 <div class="text-center py-2">
@@ -2217,6 +2238,45 @@
                         `;
                         updateLegend(); // Update the legend even if no alerts
                         return;
+                    }
+                    
+                    // Filter and display alerts
+                    filterAlerts();
+                })
+                .then(data => {
+                    // Update the last updated timestamp
+                    const formattedTime = new Date().toLocaleTimeString();
+                    document.getElementById('lastUpdated').textContent = `Last updated: ${formattedTime}`;
+                    
+                    // Process and display alerts
+                    const alerts = data.alerts || [];
+                    
+                    // Store alerts globally to support filtering
+                    window.allAlerts = alerts;
+                    
+                    if (alerts.length === 0) {
+                        alertsContainer.innerHTML = `
+                            <div class="text-center py-3">
+                                <div class="mb-2"><i class="fa-solid fa-check-circle text-success"></i></div>
+                                <div>No active weather alerts</div>
+                            </div>
+                        `;
+                        updateLegend(); // Update the legend even if no alerts
+                        return;
+                    }
+                    
+                    // Restore previous filter selections if they exist
+                    if (currentFilters && currentFilters.length > 0) {
+                        // First uncheck all filters
+                        document.querySelectorAll('.alerts-filters input[type="checkbox"]').forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                        
+                        // Then check only the ones that were previously selected
+                        currentFilters.forEach(filterValue => {
+                            const checkbox = document.querySelector(`.alerts-filters input[value="${filterValue}"]`);
+                            if (checkbox) checkbox.checked = true;
+                        });
                     }
                     
                     // Filter and display alerts
@@ -2372,12 +2432,6 @@
                         
                         // Add to polygons array for tracking
                         polygons.push(polygon);
-                        
-                        // Center map on first alert polygon if none selected
-                        if (polygons.length === 1) {
-                            const bounds = polygon.getBounds();
-                            map.fitBounds(bounds);
-                        }
                     } catch (e) {
                         console.error('Error adding alert polygon to map:', e);
                     }
@@ -2397,7 +2451,7 @@
             
             const legendTitle = document.createElement('div');
             legendTitle.className = 'legend-title';
-            legendTitle.innerText = 'Legend';
+            legendTitle.textContent = 'Map Legend';
             legendContainer.appendChild(legendTitle);
             
             // Add AI Alerts section header
@@ -2563,6 +2617,33 @@
             
             // Update the timer every second
             setInterval(updateTimerDisplay, 1000);
+        }
+
+        /**
+         * Creates a reset view button on the map that resets to the US view
+         */
+        function createResetViewButton() {
+            // Create a custom button to reset map view to US
+            const resetViewBtn = L.control({position: 'bottomright'});
+            
+            resetViewBtn.onAdd = function(map) {
+                const btn = L.DomUtil.create('button', 'btn btn-sm btn-primary reset-view-btn');
+                btn.innerHTML = '<i class="fa-solid fa-globe me-1"></i> Reset View';
+                btn.title = 'Reset to US view';
+                btn.style.padding = '6px 10px';
+                btn.style.margin = '10px';
+                btn.style.fontSize = '12px';
+                
+                L.DomEvent.on(btn, 'click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    // Reset to US view
+                    map.setView([39.8283, -98.5795], 4);
+                });
+                
+                return btn;
+            };
+            
+            resetViewBtn.addTo(map);
         }
     </script>
     
