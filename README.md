@@ -33,10 +33,10 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 - **HTTPS Support**: Secure communications with SSL/TLS encryption for enhanced security
 - **AI-Only Prediction Panel**: Dedicated panel showing only AI model predictions, separate from NWS alerts
 - **API Response Caching**: Intelligent caching system to prevent rate limit issues with external APIs
+- **Pattern Recognition**: Automated detection of mesocyclones and hook echoes in radar imagery
 
 ## Coming Soon
 
-- **Pattern Recognition**: Automated detection of mesocyclones and hook echoes in radar imagery
 - **Path Prediction**: More accurate forecasting of potential tornado tracks
 - **Impact Assessment**: Estimation of potential damage based on predicted storm intensity
 - **Mobile Browsing**: Native mobile web browsing experience with better formatting and web gui
@@ -76,6 +76,25 @@ CALM leverages a sophisticated neural network architecture to predict tornado fo
 - **Meteorological Constraints**: Domain knowledge rules to reduce false positives
 
 Current model accuracy: 87.3% (up from 78% at initial deployment)
+
+## Radar Pattern Recognition
+
+The system now incorporates computer vision algorithms to detect key tornadic signatures in radar data:
+
+1. **Mesocyclone Detection**:
+   - Analyzes velocity data to identify rotating storm structures
+   - Calculates rotation strength, diameter, and location
+   - Provides risk assessment based on mesocyclone characteristics
+
+2. **Hook Echo Detection**:
+   - Identifies hook-shaped appendages in reflectivity data
+   - Analyzes contour curvature and convexity
+   - Calculates confidence scores for detected hook echoes
+
+3. **Combined Risk Assessment**:
+   - Evaluates the presence of both patterns to determine overall risk level
+   - Assigns risk categories: none, low, moderate, high, or extreme
+   - Provides human-readable summaries of detected patterns
 
 ## Installation & Setup
 
@@ -146,6 +165,18 @@ docker-compose up --build
 | `docker-compose logs -f` | View logs |
 | `docker-compose restart` | Restart the application |
 
+### Docker Dependencies
+
+The Dockerfile includes all necessary dependencies for running the application:
+
+- **Basic Requirements**: Python libraries and core dependencies
+- **Geospatial Libraries**: Support for map projections and geographic calculations
+- **OpenCV Dependencies**: Libraries required for computer vision and radar analysis:
+  - `libgl1-mesa-glx`: OpenGL library needed by OpenCV
+  - `libglib2.0-0`, `libsm6`, `libxext6`, `libxrender-dev`: X11/GUI support libraries
+
+If you encounter the error `ImportError: libGL.so.1: cannot open shared object file`, make sure your Docker build includes the OpenCV dependencies listed above.
+
 ### Production HTTPS Setup
 
 For production deployments, follow these steps to use proper SSL certificates:
@@ -189,6 +220,8 @@ Note: Remember to set up automatic renewal for Let's Encrypt certificates as the
 - `GET /api/tornado/predictions` - Current tornado predictions (AI only)
 - `GET /api/weather/alerts` - Active weather alerts from NWS
 - `POST /api/predict` - Submit location for specific prediction
+- `POST /api/radar` - Process radar data and detect patterns
+- `POST /api/radar/analyze` - Analyze radar data for mesocyclones and hook echoes
 
 ## Data Sources
 
@@ -218,9 +251,10 @@ CALM integrates data from multiple free, public APIs:
 
 - **Backend**: Flask (Python)
 - **Machine Learning**: TensorFlow, scikit-learn
+- **Computer Vision**: OpenCV, scikit-image
 - **Visualization**: Leaflet.js, Chart.js
 - **Frontend**: Bootstrap, HTML5, CSS3, JavaScript
-- **Data Processing**: NumPy, Pandas
+- **Data Processing**: NumPy, Pandas, SciPy
 - **Security**: HTTPS with SSL/TLS via Nginx reverse proxy
 
 ## License
