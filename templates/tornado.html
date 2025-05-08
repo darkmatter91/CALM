@@ -2011,6 +2011,75 @@
                     <div class="popup-text"><strong>Helicity:</strong> ${prediction.helicity || 'N/A'} m²/s²</div>
                     <div class="popup-text"><strong>Wind Shear:</strong> ${prediction.shear || 'N/A'}</div>
                     
+                    <div class="popup-subtitle">Risk Calculation:</div>
+                    <div class="popup-text small">
+                        <ul class="popup-conditions">
+                            ${prediction.cape >= 2000 ? '<li>High CAPE indicates strong atmospheric instability</li>' : 
+                              prediction.cape >= 1200 ? '<li>Moderate CAPE suggests sufficient instability</li>' : 
+                              '<li>Lower CAPE limits storm intensity</li>'}
+                            ${prediction.helicity >= 250 ? '<li>Very high helicity indicates strong rotation potential</li>' : 
+                              prediction.helicity >= 150 ? '<li>Moderate helicity supports mesocyclone formation</li>' : 
+                              '<li>Lower helicity reduces tornado potential</li>'}
+                            ${(() => {
+                                // Try to use wind_shear (number) first, then extract from shear (string) if needed
+                                let windShearValue = prediction.wind_shear || 0;
+                                
+                                // If wind_shear is not available or zero, try to extract from shear
+                                if (!windShearValue && prediction.shear) {
+                                    if (typeof prediction.shear === 'string') {
+                                        // Extract numeric part from strings like "15 knots"
+                                        const match = prediction.shear.match(/\d+/);
+                                        if (match) {
+                                            windShearValue = parseInt(match[0]);
+                                        }
+                                    } else if (typeof prediction.shear === 'number') {
+                                        windShearValue = prediction.shear;
+                                    }
+                                }
+                                
+                                if (windShearValue >= 30) return '<li>Strong wind shear enhances storm organization</li>';
+                                else if (windShearValue >= 15) return '<li>Moderate wind shear allows storm maintenance</li>';
+                                else return '<li>Minimal wind shear limits storm structure</li>';
+                            })()}
+                            ${prediction.id && prediction.id.startsWith('grid-') ? 
+                              '<li>Exact radar-based calculation at this specific location</li>' : ''}
+                        </ul>
+                    </div>
+                    
+                    <div class="popup-subtitle">Detailed Analysis:</div>
+                    <div class="popup-text small" style="font-size: 11px;">
+                        <p>Formation probability is calculated using a weighted formula:</p>
+                        <p style="font-family: monospace; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 4px;">
+                            P<sub>formation</sub> = f(CAPE, H, WS) × R<sub>factor</sub><br>
+                            = (C<sub>f</sub> × H<sub>f</sub> × WS<sub>f</sub>)<sup>0.5</sup> × R<sub>factor</sub>
+                        </p>
+                        <p>Where:</p>
+                        <ul style="padding-left: 15px; margin-top: 4px;">
+                            <li>C<sub>f</sub> = min(1.0, CAPE/3000) = ${(Math.min(1.0, (prediction.cape || 0) / 3000)).toFixed(2)}</li>
+                            <li>H<sub>f</sub> = min(1.0, Helicity/300) = ${(Math.min(1.0, (prediction.helicity || 0) / 300)).toFixed(2)}</li>
+                            <li>WS<sub>f</sub> = min(1.0, WindShear/50) = ${(() => {
+                                let ws = prediction.wind_shear || 0;
+                                if (!ws && prediction.shear) {
+                                    if (typeof prediction.shear === 'string') {
+                                        const match = prediction.shear.match(/\d+/);
+                                        if (match) ws = parseInt(match[0]);
+                                    } else if (typeof prediction.shear === 'number') {
+                                        ws = prediction.shear;
+                                    }
+                                }
+                                return (Math.min(1.0, ws / 50)).toFixed(2);
+                            })()}</li>
+                            <li>R<sub>factor</sub> = Radar activity coefficient</li>
+                        </ul>
+                        <p>Final equation result: ${(prediction.formation_chance || prediction.chance || 0)}%</p>
+                    </div>
+                    
+                    <div class="popup-text small ${prediction.id && prediction.id.startsWith('grid-') ? 'bg-info text-white p-1 rounded' : ''}">
+                        <strong>Coordinates:</strong> ${prediction.lat.toFixed(4)}, ${prediction.lon.toFixed(4)}
+                        ${prediction.id && prediction.id.startsWith('grid-') ? 
+                          '<br><small><i class="fa-solid fa-map-pin"></i> Precise radar point prediction</small>' : ''}
+                    </div>
+                    
                     <div class="popup-text mt-2 text-muted small">Last Updated: ${formattedDate}</div>
                 </div>
             `;
