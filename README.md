@@ -1,12 +1,14 @@
 # CALM - Climate Assessment & Logging Monitor
 
-![alt text](assets/mainPage.png)
+![Main Page](/assets/calmMainPage.png)
 
-## 📋 Overview
+## Overview
 
 CALM (Climate Assessment & Logging Monitor) is a state-of-the-art web application that uses machine learning and real-time meteorological data to predict tornado formation probability. By combining traditional weather data analysis with advanced AI techniques, CALM provides early warnings and risk assessments to help enhance public safety during severe weather events.
 
-## 🚀 Vision
+![Tornado Predictions](/assets/calmTornado.png)
+
+## Vision
 
 The vision for CALM is to create an accessible, accurate, and real-time tornado prediction system that:
 
@@ -16,7 +18,7 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 - Integrates seamlessly with official weather alerts while providing additional AI-powered insights
 - Serves as both an educational tool and a practical safety resource
 
-## ✨ Features
+## Features
 
 - **Real-time Tornado Predictions**: Combines NWS alerts with AI-generated predictions
 - **Interactive Risk Visualization**: Color-coded map interface showing tornado risk levels
@@ -25,7 +27,7 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 - **Multi-factor Analysis**: Incorporates CAPE values, wind shear, helicity, and historical patterns
 - **Responsive Design**: Works seamlessly on both desktop and mobile devices
 
-## 🔮 Coming Soon
+## Coming Soon
 
 - **ZIP Code Search Functionality**: Enhanced location-based predictions with improved geocoding
 - **Interactive Radar Integration**: Real-time radar data visualization with animation controls
@@ -34,7 +36,7 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 - **Impact Assessment**: Estimation of potential damage based on predicted storm intensity
 - **Mobile App**: Native mobile experience with push notifications for alerts
 
-## 🧠 AI Model Architecture
+## AI Model Architecture
 
 CALM leverages a sophisticated neural network architecture to predict tornado formation:
 
@@ -69,7 +71,7 @@ CALM leverages a sophisticated neural network architecture to predict tornado fo
 
 Current model accuracy: 87.3% (up from 78% at initial deployment)
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 
@@ -81,7 +83,7 @@ Current model accuracy: 87.3% (up from 78% at initial deployment)
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/CALM.git
+git clone https://github.com/darkmatter91/CALM.git
 cd CALM
 ```
 
@@ -109,7 +111,7 @@ flask run
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/CALM.git
+git clone https://github.com/darkmatter91/CALM.git
 cd CALM
 ```
 
@@ -131,7 +133,7 @@ docker-compose up --build
 | `docker-compose logs -f` | View logs |
 | `docker-compose restart` | Restart the application |
 
-## 🌐 API Endpoints
+## API Endpoints
 
 ### Web Pages
 - `GET /` - Main dashboard
@@ -143,7 +145,7 @@ docker-compose up --build
 - `GET /api/weather/alerts` - Active weather alerts from NWS
 - `POST /api/predict` - Submit location for specific prediction
 
-## 📊 Data Sources
+## Data Sources
 
 CALM integrates data from multiple free, public APIs:
 
@@ -159,7 +161,7 @@ CALM integrates data from multiple free, public APIs:
    - Global weather data
    - No API key required
 
-## 📊 Technical Stack
+## Technical Stack
 
 - **Backend**: Flask (Python)
 - **Machine Learning**: TensorFlow, scikit-learn
@@ -167,10 +169,10 @@ CALM integrates data from multiple free, public APIs:
 - **Frontend**: Bootstrap, HTML5, CSS3, JavaScript
 - **Data Processing**: NumPy, Pandas
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 👨‍💻 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. 
