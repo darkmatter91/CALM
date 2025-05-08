@@ -744,21 +744,59 @@ def sanitize_forecast_period(period):
     
     return clean_period
 
+# Simple cache for Open-Meteo API to avoid rate limiting
+open_meteo_cache = {}
+OPEN_METEO_CACHE_DURATION = 30 * 60  # 30 minutes in seconds
+
 def get_open_meteo_data(lat, lon):
-    """Get weather data from Open-Meteo free weather API."""
+    """Get weather data from Open-Meteo free weather API with caching.
+    NOTE: Currently disabled to reduce unnecessary API requests.
+    """
+    # Just return None - Open-Meteo data is not being used currently
+    return None
+    
+    # Original implementation commented out below
+    """
     max_retries = 2
     retry_delay = 2  # seconds
+    
+    # Round coordinates to 4 decimal places for cache key
+    # This avoids multiple similar cache entries for nearly identical locations
+    lat_rounded = round(float(lat), 4)
+    lon_rounded = round(float(lon), 4)
+    cache_key = f"{lat_rounded},{lon_rounded}"
+    
+    # Check if we have a cached response that's still valid
+    if cache_key in open_meteo_cache:
+        cache_entry = open_meteo_cache[cache_key]
+        cache_age = time.time() - cache_entry['timestamp']
+        
+        # Return cached data if it's still fresh
+        if cache_age < OPEN_METEO_CACHE_DURATION:
+            print(f"Using cached Open-Meteo data for {cache_key} (age: {int(cache_age/60)} minutes)")
+            return cache_entry['data']
+        else:
+            print(f"Cached Open-Meteo data expired for {cache_key} (age: {int(cache_age/60)} minutes)")
     
     for attempt in range(max_retries + 1):
         try:
             # Open-Meteo provides a completely free weather API with no key requirement
             # Respect rate limits (5000 requests/day, 10 requests/second)
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,rain,showers,snowfall,weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m,cape&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto"
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat_rounded}&longitude={lon_rounded}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,rain,showers,snowfall,weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m,cape&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto"
             
             # Increased timeout to help with slower connections
             response = requests.get(url, timeout=15)
             response.raise_for_status()
-            return response.json()
+            
+            # Cache the successful response
+            data = response.json()
+            open_meteo_cache[cache_key] = {
+                'data': data,
+                'timestamp': time.time()
+            }
+            
+            print(f"Cached new Open-Meteo data for {cache_key}")
+            return data
             
         except requests.exceptions.Timeout:
             if attempt < max_retries:
@@ -772,17 +810,31 @@ def get_open_meteo_data(lat, lon):
         except requests.exceptions.HTTPError as e:
             print(f"HTTP error getting Open-Meteo data: {e}")
             
-            # If it's a server error (5xx), retry
-            if 500 <= e.response.status_code < 600 and attempt < max_retries:
+            # If we get a 429 (Too Many Requests) response, wait longer before retrying
+            if e.response.status_code == 429 and attempt < max_retries:
+                retry_delay = 5 * (attempt + 1)  # Increasing delay for rate limit errors
+                print(f"Rate limited (429), retrying in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries + 1})")
+                time.sleep(retry_delay)
+            # If it's another server error (5xx), retry with standard backoff
+            elif 500 <= e.response.status_code < 600 and attempt < max_retries:
                 print(f"Server error, retrying in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries + 1})")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # Exponential backoff
             else:
+                # Try to return cached data even if it's expired, better than nothing
+                if cache_key in open_meteo_cache:
+                    print(f"Using expired cache for {cache_key} as API request failed")
+                    return open_meteo_cache[cache_key]['data']
                 return None
                 
         except Exception as e:
             print(f"Error getting Open-Meteo data: {e}")
+            # Try to return cached data even if it's expired, better than nothing
+            if cache_key in open_meteo_cache:
+                print(f"Using expired cache for {cache_key} as API request failed")
+                return open_meteo_cache[cache_key]['data']
             return None
+    """
 
 def estimate_cape_from_temp_dewpoint(temp_f, dewpoint_f):
     """Estimate CAPE value from temperature and dewpoint."""
@@ -852,11 +904,14 @@ def get_weather_data(lat, lon, timestamp=None):
     except Exception as e:
         print(f"Error getting NWS data: {e}")
     
-    # Add Open-Meteo data (worldwide coverage)
+    # Add Open-Meteo data (worldwide coverage) - DISABLED TO REDUCE API REQUESTS
+    # Only uncomment if needed for specific features
+    """
     try:
         data['open_meteo'] = get_open_meteo_data(lat, lon)
     except Exception as e:
         print(f"Error getting Open-Meteo data: {e}")
+    """
     
     return data
 
@@ -870,96 +925,24 @@ def convert_weather_conditions_to_severity(weather_data):
     precip_type = "None"
     precip_intensity = "None"
     
+    # Set default weather metrics
+    weather_metrics = {
+        'weather_type': weather_type,
+        'precipitation_type': precip_type,
+        'precipitation_intensity': precip_intensity,
+        'wind_shear': 25,  # Default wind shear
+        'storm_motion': 20,  # Default storm motion
+        'cape': 500,  # Default CAPE
+        'helicity': 100,  # Default helicity
+        'tornadic_probability': 0.01  # Default very low tornadic probability
+    }
+    
     try:
-        # Try to extract from Open-Meteo first
-        if 'open_meteo' in weather_data and weather_data['open_meteo']:
-            meteo = weather_data['open_meteo']
-            
-            # Get current weather
-            if 'current' in meteo:
-                current = meteo['current']
-                weather_code = current.get('weather_code')
-                weather_type = convert_open_meteo_weather_code(weather_code)
-                
-                # Determine precipitation type and intensity
-                precipitation = current.get('precipitation', 0)
-                rain = current.get('rain', 0)
-                showers = current.get('showers', 0)
-                snowfall = current.get('snowfall', 0)
-                wind_speed = current.get('wind_speed_10m', 0)
-                
-                # Set cape from hourly data since it's not in current
-                if 'hourly' in meteo and meteo['hourly'].get('cape') and len(meteo['hourly']['cape']) > 0:
-                    cape = meteo['hourly']['cape'][0]
-                else:
-                    cape = 0
-                
-                # Determine weather type and severity
-                if weather_code == 95 or weather_code == 96 or weather_code == 99:
-                    # Thunderstorm
-                    precip_type = "Thunderstorm"
-                    if weather_code == 99:
-                        precip_intensity = "Heavy"
-                        severity = "high"
-                        probability = 0.7
-                    else:
-                        precip_intensity = "Moderate"
-                        severity = "moderate"
-                        probability = 0.5
-                elif (61 <= weather_code <= 65) or (80 <= weather_code <= 82):
-                    # Rain
-                    precip_type = "Rain"
-                    if weather_code == 65 or weather_code == 82:
-                        precip_intensity = "Heavy"
-                        severity = "moderate"
-                        probability = 0.4
-                    else:
-                        precip_intensity = "Light"
-                        severity = "low"
-                        probability = 0.2
-                elif (71 <= weather_code <= 75) or (85 <= weather_code <= 86):
-                    # Snow
-                    precip_type = "Snow"
-                    if weather_code == 75 or weather_code == 86:
-                        precip_intensity = "Heavy"
-                        severity = "moderate"
-                        probability = 0.3
-                    else:
-                        precip_intensity = "Light"
-                        severity = "low"
-                        probability = 0.1
-                else:
-                    # Other conditions
-                    if precipitation > 0:
-                        if rain > 0 or showers > 0:
-                            precip_type = "Rain"
-                            precip_intensity = "Light" if precipitation < 2.5 else "Moderate" if precipitation < 7.5 else "Heavy"
-                        elif snowfall > 0:
-                            precip_type = "Snow"
-                            precip_intensity = "Light" if snowfall < 1 else "Moderate" if snowfall < 5 else "Heavy"
-                    
-                # Get temp for CAPE estimation if needed
-                temp_f = current.get('temperature_2m', 70)
-                humidity = current.get('relative_humidity_2m', 50)
-                dewpoint_f = temp_f - ((100 - humidity) / 5)  # rough estimate
-            
-            # Fallback to hourly if no current data
-            elif 'hourly' in meteo and meteo['hourly'].get('weather_code') and len(meteo['hourly']['weather_code']) > 0:
-                weather_code = meteo['hourly']['weather_code'][0]
-                weather_type = convert_open_meteo_weather_code(weather_code)
-                precipitation = meteo['hourly'].get('precipitation', [0])[0]
-                cape = meteo['hourly'].get('cape', [0])[0]
-                temp_f = meteo['hourly'].get('temperature_2m', [70])[0]
-                humidity = meteo['hourly'].get('relative_humidity_2m', [50])[0]
-                dewpoint_f = temp_f - ((100 - humidity) / 5)  # rough estimate
-                
-                if precipitation > 0:
-                    if meteo['hourly'].get('rain', [0])[0] > 0 or meteo['hourly'].get('showers', [0])[0] > 0:
-                        precip_type = "Rain"
-                        precip_intensity = "Light" if precipitation < 2.5 else "Moderate" if precipitation < 7.5 else "Heavy"
-                    elif meteo['hourly'].get('snowfall', [0])[0] > 0:
-                        precip_type = "Snow"
-                        precip_intensity = "Light" if meteo['hourly'].get('snowfall', [0])[0] < 1 else "Moderate" if meteo['hourly'].get('snowfall', [0])[0] < 5 else "Heavy"
+        # Try to extract from Open-Meteo first (DISABLED CURRENTLY)
+        # if 'open_meteo' in weather_data and weather_data['open_meteo']:
+        #     meteo = weather_data['open_meteo']
+        #     
+        #     # Open-Meteo data processing logic removed since it's disabled...
         
         # If we have NWS data (US only), use it to enhance the assessment
         if 'nws_forecast' in weather_data and weather_data['nws_forecast']:
@@ -970,41 +953,52 @@ def convert_weather_conditions_to_severity(weather_data):
             
             # Update weather_type from NWS if we have it
             weather_type = nws.get('shortForecast', weather_type)
+            weather_metrics['weather_type'] = weather_type
             
             # Update precipitation info based on NWS text
             if 'thunderstorm' in nws_forecast_text or 'thunder' in nws_forecast_text:
                 precip_type = "Thunderstorm"
+                weather_metrics['precipitation_type'] = precip_type
                 if 'severe' in nws_forecast_text or 'heavy' in nws_forecast_text:
                     precip_intensity = "Heavy"
+                    weather_metrics['precipitation_intensity'] = precip_intensity
                     severity = "high"
                     probability = 0.7
                 else:
                     precip_intensity = "Moderate"
+                    weather_metrics['precipitation_intensity'] = precip_intensity
                     severity = "moderate"
                     probability = 0.5
             elif 'rain' in nws_forecast_text:
                 precip_type = "Rain"
+                weather_metrics['precipitation_type'] = precip_type
                 if 'heavy' in nws_forecast_text:
                     precip_intensity = "Heavy"
+                    weather_metrics['precipitation_intensity'] = precip_intensity
                     severity = "moderate"
                     probability = 0.4
                 else:
                     precip_intensity = "Light"
+                    weather_metrics['precipitation_intensity'] = precip_intensity
                     severity = "low"
                     probability = 0.2
             elif 'snow' in nws_forecast_text:
                 precip_type = "Snow"
+                weather_metrics['precipitation_type'] = precip_type
                 if 'heavy' in nws_forecast_text:
                     precip_intensity = "Heavy"
+                    weather_metrics['precipitation_intensity'] = precip_intensity
                     severity = "moderate"
                     probability = 0.3
                 else:
                     precip_intensity = "Light"
+                    weather_metrics['precipitation_intensity'] = precip_intensity
                     severity = "low"
                     probability = 0.1
             
-            temp_f = nws.get('temperature', temp_f if 'temp_f' in locals() else 70)
+            temp_f = nws.get('temperature', 70)
             wind_speed = int(''.join(filter(str.isdigit, nws.get('windSpeed', '0')))) if 'windSpeed' in nws else 0
+            weather_metrics['storm_motion'] = wind_speed
             
             # Determine tornadic probability based on NWS description
             tornadic_probability = 0.01  # Default very low
@@ -1031,46 +1025,26 @@ def convert_weather_conditions_to_severity(weather_data):
             elif severity == "high" and 'thunderstorm' in nws_forecast_text:
                 tornadic_probability = 0.3  # Increased from 0.2
             
-            # Wind shear approximation
-            if 'wind_speed' not in locals():
-                wind_speed = wind_speed
+            weather_metrics['tornadic_probability'] = tornadic_probability
             
-        # Default values if we couldn't extract them above
-        if 'temp_f' not in locals():
-            temp_f = 70
-        if 'dewpoint_f' not in locals():
-            dewpoint_f = temp_f - 10  # rough estimation
-        if 'cape' not in locals() or not cape:
-            cape = estimate_cape_from_temp_dewpoint(temp_f, dewpoint_f)
-        if 'wind_speed' not in locals():
-            wind_speed = 5  # default value
-        if 'tornadic_probability' not in locals():
-            tornadic_probability = 0.01  # default very low value
+            # Estimate CAPE from temp and other factors
+            cape = estimate_cape_from_temp_dewpoint(temp_f, temp_f - 10)  # rough estimate for dewpoint
+            weather_metrics['cape'] = cape
             
-        # Estimate wind shear
-        wind_shear = int(max(5, min(150, wind_speed * 1.5)))
-            
-        # Estimate storm motion based on wind speed
-        storm_motion = int(wind_speed)
+            # Estimate wind shear
+            wind_shear = int(max(5, min(150, wind_speed * 1.5)))
+            weather_metrics['wind_shear'] = wind_shear
+                
+            # Estimate helicity based on tornadic probability
+            helicity = int(tornadic_probability * 300)
+            weather_metrics['helicity'] = helicity
         
-        # Estimate helicity based on tornadic probability
-        helicity = int(tornadic_probability * 300)
-            
-        # Return detailed weather metrics
-        return severity, probability, {
-            'weather_type': weather_type,
-            'precipitation_type': precip_type,
-            'precipitation_intensity': precip_intensity,
-            'wind_shear': wind_shear,
-            'storm_motion': storm_motion,
-            'cape': cape,
-            'helicity': helicity,
-            'tornadic_probability': tornadic_probability
-        }
+        # Return the computed values
+        return severity, probability, weather_metrics
         
     except Exception as e:
         print(f"Error converting weather conditions: {e}")
-        return "low", 0.1, {}
+        return "low", 0.1, weather_metrics
 
 def get_tornado_risk_level(tornadic_probability):
     """Convert tornadic probability to a risk level."""
