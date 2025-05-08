@@ -1,10 +1,6 @@
 # CALM - Climate Assessment & Logging Monitor
 
-<div align="center">
-  <img src="static/images/logo.jpg" alt="CALM Logo" width="150">
-  <br>
-  <em>Advanced tornado prediction using AI and meteorological data analysis</em>
-</div>
+![alt text](assets/mainPage.png)
 
 ## 📋 Overview
 
