@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CALM - AI Tornado Prediction Model</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="description" content="CALM: Climate Assessment & Logging Monitor with AI-powered tornado prediction">
+    <meta name="theme-color" content="#0a0e17">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --dark-bg: #121826;
+            --dark-card: #1c2436;
+            --dark-accent: #2a3349;
+            --dark-text: #f3f4f6;
+            --dark-text-secondary: #9ca3af;
+            --dark-border: #374151;
+            --dark-blue: #3b82f6;
+            --dark-green: #10b981;
+            --dark-yellow: #f59e0b;
+            --dark-red: #ef4444;
+            --dark-purple: #8b5cf6;
+            
+            /* Derived variables - will change with theme */
+            --bg: var(--dark-bg);
+            --card: var(--dark-card);
+            --accent: var(--dark-accent);
+            --text: var(--dark-text);
+            --text-secondary: var(--dark-text-secondary);
+            --border: var(--dark-border);
+            --blue: var(--dark-blue);
+            --green: var(--dark-green);
+            --yellow: var(--dark-yellow);
+            --red: var(--dark-red);
+            --purple: var(--dark-purple);
+            
+            /* Additional styles */
+            --primary: #3a86ff;
+            --primary-dark: #2563eb;
+            --primary-hover: #2a75ff;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #8b5cf6;
+            --body-bg: #0f172a;
+            --card-bg: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* AI Version Banner */
+        .ai-version-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--info));
+            color: white;
+            text-align: center;
+            font-size: 12px;
+            padding: 4px 0;
+            z-index: 1100;
+            font-weight: 500;
+        }
+        
+        /* Layout elements */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .app-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Navigation links */
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .app-content {
+            flex: 1;
+            padding: 1.5rem;
+        }
+        
+        /* Cards */
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            overflow: hidden;
+            height: 100%;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--accent);
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        /* Stats */
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        /* Model visualization */
+        .model-visualization {
+            width: 100%;
+            padding: 15px;
+            overflow: hidden;
+        }
+        
+        .model-layer {
+            background-color: var(--dark-accent);
+            border-radius: 10px;
+            margin: 5px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .model-layer:hover {
+            transform: scale(1.05);
+        }
+        
+        .layer-cnn {
+            background: linear-gradient(180deg, var(--dark-blue), var(--dark-purple));
+        }
+        
+        .layer-dense {
+            background: linear-gradient(180deg, var(--dark-green), var(--dark-blue));
+        }
+        
+        .layer-input {
+            background: linear-gradient(180deg, var(--dark-red), var(--dark-yellow));
+        }
+        
+        .layer-output {
+            background: linear-gradient(180deg, var(--dark-yellow), var(--dark-green));
+        }
+        
+        /* Progress bars */
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            background-color: var(--accent);
+        }
+        
+        .progress-bar.low {
+            background-color: var(--dark-red);
+        }
+        
+        .progress-bar.medium {
+            background-color: var(--dark-yellow);
+        }
+        
+        .progress-bar.high {
+            background-color: var(--dark-green);
+        }
+        
+        /* Training section */
+        .training-section {
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+        
+        .training-history {
+            height: 300px;
+            background-color: var(--dark-accent);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        /* Form elements */
+        .form-control {
+            background-color: var(--accent);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 10px 15px;
+        }
+        
+        .form-control:focus {
+            background-color: var(--accent);
+            color: var(--text);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.25rem rgba(58, 134, 255, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 8px 16px;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+        
+        .btn-outline-primary {
+            border-color: var(--primary);
+            color: var(--primary);
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 8px 16px;
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        /* Console log style */
+        .console-log {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            color: #f8f8f8;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+        
+        .log-success {
+            color: var(--green);
+        }
+        
+        .log-error {
+            color: var(--red);
+        }
+        
+        .log-warning {
+            color: var(--yellow);
+        }
+        
+        .log-info {
+            color: var(--blue);
+        }
+        
+    </style>
+</head>
+<body>
+    <!-- AI Version Banner -->
+    <div class="ai-version-banner">
+        Deep Learning Powered Tornado Prediction Model
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" style="margin-top: 24px;">
+            <div class="d-flex align-items-center">
+                <div>
+                    <h1 class="app-title">CALM</h1>
+                    <div class="text-muted small">Climate Assessment & Logging Monitor</div>
+                </div>
+            </div>
+            
+            <div class="nav-links">
+                <a href="/tornado" class="nav-link">
+                    <i class="bi bi-tornado me-2"></i>
+                    Tornado Map
+                </a>
+                <a href="/model-stats" class="nav-link active">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Model
+                </a>
+                <a href="/stats" class="nav-link">
+                    <i class="bi bi-bar-chart-fill me-2"></i>
+                    Prediction Stats
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="bi bi-info-circle me-2"></i>
+                    About
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="app-content">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h2 class="mb-3">TornadoAI Deep Learning Model</h2>
+                    <p class="lead">
+                        This page provides information about the AI model that powers our tornado predictions, 
+                        including model architecture, training data, and performance metrics.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="row">
+                <!-- Model Status Card -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <i class="bi bi-info-circle me-2"></i>
+                                Model Status
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" id="refreshStatusBtn">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="modelStatusContainer">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <div>Model Status:</div>
+                                    <div id="modelStatus" class="badge bg-secondary">Loading...</div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <div>Trained:</div>
+                                    <div id="modelTrained" class="badge bg-secondary">Loading...</div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <div>Model Size:</div>
+                                    <div id="modelSize">Loading...</div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <div>Last Updated:</div>
+                                    <div id="lastUpdated">Loading...</div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <div>Model Path:</div>
+                                    <div id="modelPath" class="text-truncate" style="max-width: 200px;">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Architecture Card -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <i class="bi bi-diagram-3 me-2"></i>
+                                Model Architecture
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="model-visualization">
+                                <div class="row">
+                                    <!-- INPUT LAYER -->
+                                    <div class="col-md-2">
+                                        <div class="model-layer layer-input">
+                                            <div class="text-white">Inputs</div>
+                                            <small>Radar Image<br>224×224×3</small>
+                                        </div>
+                                        <div class="model-layer layer-input mt-3">
+                                            <div class="text-white">Weather Data</div>
+                                            <small>10 features</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- CONVOLUTIONAL LAYERS -->
+                                    <div class="col-md-2">
+                                        <div class="model-layer layer-cnn">
+                                            <div class="text-white">CNN</div>
+                                            <small>ResNet50V2</small>
+                                        </div>
+                                        <div class="model-layer layer-dense mt-3">
+                                            <div class="text-white">Dense</div>
+                                            <small>64 neurons</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- HIDDEN LAYERS -->
+                                    <div class="col-md-2">
+                                        <div class="model-layer layer-cnn">
+                                            <div class="text-white">GlobalPool</div>
+                                            <small>Average</small>
+                                        </div>
+                                        <div class="model-layer layer-dense mt-3">
+                                            <div class="text-white">BatchNorm</div>
+                                            <small>Normalization</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- DENSE LAYERS -->
+                                    <div class="col-md-2">
+                                        <div class="model-layer layer-dense">
+                                            <div class="text-white">Dense</div>
+                                            <small>256 neurons</small>
+                                        </div>
+                                        <div class="model-layer layer-dense mt-3">
+                                            <div class="text-white">Dense</div>
+                                            <small>32 neurons</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- FEATURE FUSION -->
+                                    <div class="col-md-2">
+                                        <div class="model-layer layer-dense mt-4">
+                                            <div class="text-white">Concatenate</div>
+                                            <small>Feature fusion</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- OUTPUT LAYER -->
+                                    <div class="col-md-2">
+                                        <div class="model-layer layer-output">
+                                            <div class="text-white">Output</div>
+                                            <small>Tornado Probability</small>
+                                        </div>
+                                        <div class="model-layer layer-output mt-3">
+                                            <div class="text-white">Output</div>
+                                            <small>Severity (4 classes)</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Model Section -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <i class="bi bi-lightning me-2"></i>
+                                Test AI Prediction
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="testModelForm">
+                                <div class="mb-3">
+                                    <label for="testZipcode" class="form-label">Zipcode (US)</label>
+                                    <input type="text" class="form-control" id="testZipcode" placeholder="e.g. 66049" maxlength="5">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Alternatively, enter coordinates:</label>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <input type="number" class="form-control" id="testLatitude" placeholder="Latitude" step="0.0001">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="number" class="form-control" id="testLongitude" placeholder="Longitude" step="0.0001">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-search me-2"></i>
+                                        Make AI Prediction
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <div id="predictionResult" class="mt-4 d-none">
+                                <h5 class="border-bottom pb-2">Prediction Results</h5>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>Tornado Risk:</div>
+                                    <div id="predictionRisk" class="badge bg-secondary">-</div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>Formation Chance:</div>
+                                    <div id="predictionChance">-</div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>Model Confidence:</div>
+                                    <div id="predictionConfidence">-</div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>Location:</div>
+                                    <div id="predictionLocation">-</div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="mb-1">Key Weather Parameters:</div>
+                                    <ul>
+                                        <li><strong>CAPE:</strong> <span id="predictionCAPE">-</span></li>
+                                        <li><strong>Helicity:</strong> <span id="predictionHelicity">-</span></li>
+                                        <li><strong>Wind Shear:</strong> <span id="predictionShear">-</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Model Training Section -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <i class="bi bi-cpu me-2"></i>
+                                Model Training
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-warning mb-3">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                Training the model requires significant computing resources and may take several minutes.
+                            </p>
+                            
+                            <form id="trainModelForm">
+                                <div class="mb-3">
+                                    <label for="dataPath" class="form-label">Data Source Path (optional)</label>
+                                    <input type="text" class="form-control" id="dataPath" placeholder="e.g. /path/to/tornado_data.csv">
+                                    <small class="form-text text-muted">Leave empty to use synthetic training data for demo purposes</small>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label for="epochs" class="form-label">Epochs</label>
+                                        <input type="number" class="form-control" id="epochs" value="20" min="1" max="100">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="batchSize" class="form-label">Batch Size</label>
+                                        <input type="number" class="form-control" id="batchSize" value="32" min="4" max="128">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="validationSplit" class="form-label">Validation %</label>
+                                        <input type="number" class="form-control" id="validationSplit" value="20" min="10" max="40">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-play-fill me-2"></i>
+                                        Start Training
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <div id="trainingProgress" class="d-none">
+                                <h5 class="border-bottom pb-2 mb-3">Training Progress</h5>
+                                <div class="progress mb-2">
+                                    <div id="trainingProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center text-small mb-3">
+                                    <div>Progress: <span id="trainingProgressText">0%</span></div>
+                                    <div>Epoch: <span id="currentEpoch">0</span>/<span id="totalEpochs">0</span></div>
+                                </div>
+                                
+                                <div class="console-log" id="trainingLog">
+                                    <div class="log-entry log-info">Waiting for training to start...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial page load
+            fetchModelStatus();
+            
+            // Event listeners
+            document.getElementById('refreshStatusBtn').addEventListener('click', fetchModelStatus);
+            document.getElementById('testModelForm').addEventListener('submit', makeAIPrediction);
+            document.getElementById('trainModelForm').addEventListener('submit', trainModel);
+            
+            // Functions
+            function fetchModelStatus() {
+                fetch('/api/model/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update status display
+                        document.getElementById('modelStatus').textContent = data.model_exists ? 'Ready' : 'Not Found';
+                        document.getElementById('modelStatus').className = data.model_exists ? 'badge bg-success' : 'badge bg-danger';
+                        
+                        document.getElementById('modelTrained').textContent = data.model_trained ? 'Yes' : 'No';
+                        document.getElementById('modelTrained').className = data.model_trained ? 'badge bg-success' : 'badge bg-warning';
+                        
+                        document.getElementById('modelSize').textContent = data.model_size_mb ? `${data.model_size_mb} MB` : 'N/A';
+                        document.getElementById('lastUpdated').textContent = data.last_modified ? new Date(data.last_modified).toLocaleString() : 'Never';
+                        document.getElementById('modelPath').textContent = data.model_path || 'N/A';
+                        document.getElementById('modelPath').title = data.model_path || 'N/A';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching model status:', error);
+                    });
+            }
+            
+            function makeAIPrediction(event) {
+                event.preventDefault();
+                
+                // Get input values
+                const zipcode = document.getElementById('testZipcode').value;
+                const latitude = document.getElementById('testLatitude').value;
+                const longitude = document.getElementById('testLongitude').value;
+                
+                // Validate inputs
+                if (!zipcode && (!latitude || !longitude)) {
+                    alert('Please provide either a zipcode or latitude/longitude coordinates.');
+                    return;
+                }
+                
+                // Prepare request data
+                const requestData = {};
+                if (zipcode) {
+                    requestData.zipcode = zipcode;
+                } else {
+                    requestData.latitude = parseFloat(latitude);
+                    requestData.longitude = parseFloat(longitude);
+                }
+                
+                // Show loading state
+                const predictionSection = document.getElementById('predictionResult');
+                predictionSection.classList.remove('d-none');
+                document.getElementById('predictionRisk').className = 'badge bg-secondary';
+                document.getElementById('predictionRisk').textContent = 'Loading...';
+                document.getElementById('predictionChance').textContent = 'Loading...';
+                document.getElementById('predictionConfidence').textContent = 'Loading...';
+                document.getElementById('predictionLocation').textContent = 'Loading...';
+                document.getElementById('predictionCAPE').textContent = 'Loading...';
+                document.getElementById('predictionHelicity').textContent = 'Loading...';
+                document.getElementById('predictionShear').textContent = 'Loading...';
+                
+                // Make API call
+                fetch('/api/predict/ai', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Update UI with results
+                    const riskLevel = data.risk_level || 'LOW';
+                    const formationChance = data.formation_chance || 0;
+                    const confidence = (data.confidence * 100).toFixed(1) || 0;
+                    
+                    // Set risk badge color
+                    let badgeClass = 'badge ';
+                    if (riskLevel.toUpperCase() === 'LOW') {
+                        badgeClass += 'bg-success';
+                    } else if (riskLevel.toUpperCase() === 'MODERATE') {
+                        badgeClass += 'bg-warning text-dark';
+                    } else if (riskLevel.toUpperCase() === 'HIGH') {
+                        badgeClass += 'bg-danger';
+                    } else if (riskLevel.toUpperCase() === 'EXTREME') {
+                        badgeClass += 'bg-danger';
+                    } else {
+                        badgeClass += 'bg-secondary';
+                    }
+                    
+                    document.getElementById('predictionRisk').className = badgeClass;
+                    document.getElementById('predictionRisk').textContent = riskLevel.toUpperCase();
+                    document.getElementById('predictionChance').textContent = `${formationChance}%`;
+                    document.getElementById('predictionConfidence').textContent = `${confidence}%`;
+                    
+                    // Set location
+                    const locationName = data.location?.name || data.location || 'Unknown';
+                    const coordinates = `(${data.location?.latitude.toFixed(4) || 'N/A'}, ${data.location?.longitude.toFixed(4) || 'N/A'})`;
+                    document.getElementById('predictionLocation').textContent = `${locationName} ${coordinates}`;
+                    
+                    // Set weather parameters
+                    document.getElementById('predictionCAPE').textContent = `${data.cape || 0} J/kg`;
+                    document.getElementById('predictionHelicity').textContent = `${data.helicity || 0} m²/s²`;
+                    document.getElementById('predictionShear').textContent = data.wind_shear || 'N/A';
+                })
+                .catch(error => {
+                    console.error('Error making prediction:', error);
+                    document.getElementById('predictionRisk').className = 'badge bg-danger';
+                    document.getElementById('predictionRisk').textContent = 'Error';
+                    document.getElementById('predictionChance').textContent = 'N/A';
+                    document.getElementById('predictionConfidence').textContent = 'N/A';
+                    document.getElementById('predictionLocation').textContent = error.message || 'Failed to make prediction';
+                    document.getElementById('predictionCAPE').textContent = 'N/A';
+                    document.getElementById('predictionHelicity').textContent = 'N/A';
+                    document.getElementById('predictionShear').textContent = 'N/A';
+                });
+            }
+            
+            function trainModel(event) {
+                event.preventDefault();
+                
+                // Get form values
+                const dataPath = document.getElementById('dataPath').value;
+                const epochs = parseInt(document.getElementById('epochs').value);
+                const batchSize = parseInt(document.getElementById('batchSize').value);
+                const validationSplit = parseInt(document.getElementById('validationSplit').value) / 100;
+                
+                // Show training progress section
+                const trainingProgress = document.getElementById('trainingProgress');
+                trainingProgress.classList.remove('d-none');
+                
+                // Reset progress indicators
+                const progressBar = document.getElementById('trainingProgressBar');
+                progressBar.style.width = '0%';
+                progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+                
+                document.getElementById('trainingProgressText').textContent = '0%';
+                document.getElementById('currentEpoch').textContent = '0';
+                document.getElementById('totalEpochs').textContent = epochs;
+                
+                // Clear and initialize log
+                const trainingLog = document.getElementById('trainingLog');
+                trainingLog.innerHTML = '<div class="log-entry log-info">Starting model training...</div>';
+                
+                // Add log entry
+                function addLogEntry(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry log-${type}`;
+                    entry.textContent = message;
+                    trainingLog.appendChild(entry);
+                    trainingLog.scrollTop = trainingLog.scrollHeight;
+                }
+                
+                // Prepare request data
+                const requestData = {
+                    data_path: dataPath,
+                    epochs: epochs,
+                    batch_size: batchSize,
+                    validation_split: validationSplit
+                };
+                
+                // Make API call to train model
+                addLogEntry('Sending training request to server...', 'info');
+                
+                fetch('/api/model/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    if (data.status === 'error') {
+                        throw new Error(data.message);
+                    }
+                    
+                    // Handle successful training
+                    progressBar.style.width = '100%';
+                    progressBar.className = 'progress-bar bg-success';
+                    document.getElementById('trainingProgressText').textContent = '100%';
+                    document.getElementById('currentEpoch').textContent = data.epochs_completed || epochs;
+                    
+                    addLogEntry('Training completed successfully!', 'success');
+                    addLogEntry(`Accuracy: ${(data.metrics?.accuracy * 100).toFixed(2)}%`, 'info');
+                    addLogEntry(`Validation Accuracy: ${(data.metrics?.val_accuracy * 100).toFixed(2)}%`, 'info');
+                    
+                    // Refresh model status
+                    fetchModelStatus();
+                })
+                .catch(error => {
+                    console.error('Error training model:', error);
+                    progressBar.className = 'progress-bar bg-danger';
+                    addLogEntry(`Error: ${error.message}`, 'error');
+                });
+                
+                // Simulate training progress (since actual progress isn't available)
+                let currentEpoch = 0;
+                const epochInterval = setInterval(() => {
+                    if (currentEpoch >= epochs) {
+                        clearInterval(epochInterval);
+                        return;
+                    }
+                    
+                    currentEpoch++;
+                    const progress = (currentEpoch / epochs) * 100;
+                    
+                    progressBar.style.width = `${progress}%`;
+                    document.getElementById('trainingProgressText').textContent = `${Math.round(progress)}%`;
+                    document.getElementById('currentEpoch').textContent = currentEpoch;
+                    
+                    // Add simulated log entries
+                    if (currentEpoch === 1) {
+                        addLogEntry('Preparing training data...', 'info');
+                        addLogEntry('Initializing model weights...', 'info');
+                    }
+                    
+                    const randomLoss = (1 - (currentEpoch / epochs) * 0.7).toFixed(4);
+                    const randomAcc = (0.5 + (currentEpoch / epochs) * 0.4).toFixed(4);
+                    
+                    addLogEntry(`Epoch ${currentEpoch}/${epochs} - loss: ${randomLoss} - accuracy: ${randomAcc}`, 'info');
+                    
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html> 

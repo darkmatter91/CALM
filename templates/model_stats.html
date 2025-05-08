@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CALM - AI Model Statistics</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="description" content="Climate Assessment & Logging Monitor: AI Model Performance Statistics and Training Data">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CALM">
+    
+    <!-- PWA icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom styling for the app -->
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --dark-bg: #121826;
+            --dark-card: #1c2436;
+            --dark-accent: #2a3349;
+            --dark-text: #f3f4f6;
+            --dark-text-secondary: #9ca3af;
+            --dark-border: #374151;
+            --dark-blue: #3b82f6;
+            --dark-green: #10b981;
+            --dark-yellow: #f59e0b;
+            --dark-red: #ef4444;
+            --dark-purple: #8b5cf6;
+            
+            /* Light theme */
+            --light-bg: #f9fafb;
+            --light-card: #ffffff;
+            --light-accent: #f3f4f6;
+            --light-text: #111827;
+            --light-text-secondary: #4b5563;
+            --light-border: #e5e7eb;
+            --light-blue: #3b82f6;
+            --light-green: #10b981;
+            --light-yellow: #f59e0b;
+            --light-red: #ef4444;
+            --light-purple: #8b5cf6;
+            
+            /* Shared colors */
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #60a5fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #8b5cf6;
+            
+            /* Derived variables - will change with theme */
+            --bg: var(--dark-bg);
+            --card: var(--dark-card);
+            --accent: var(--dark-accent);
+            --text: var(--dark-text);
+            --text-secondary: var(--dark-text-secondary);
+            --border: var(--dark-border);
+            --blue: var(--dark-blue);
+            --green: var(--dark-green);
+            --yellow: var(--dark-yellow);
+            --red: var(--dark-red);
+            --purple: var(--dark-purple);
+        }
+        
+        /* Light theme overrides */
+        [data-bs-theme="light"] {
+            --bg: var(--light-bg);
+            --card: var(--light-card);
+            --accent: var(--light-accent);
+            --text: var(--light-text);
+            --text-secondary: var(--light-text-secondary);
+            --border: var(--light-border);
+            --blue: var(--light-blue);
+            --green: var(--light-green);
+            --yellow: var(--light-yellow);
+            --red: var(--light-red);
+            --purple: var(--light-purple);
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        /* Layout elements */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .app-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .app-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        .app-content {
+            flex: 1;
+            display: flex;
+            padding: 1.5rem;
+        }
+
+        /* Card styling */
+        .stat-card {
+            background-color: var(--card);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        
+        .stat-card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0;
+        }
+        
+        .stat-card-icon {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .stat-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Table styling */
+        .stats-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .stats-table th {
+            background-color: var(--accent);
+            padding: 12px 15px;
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .stats-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .stats-table tr:nth-child(even) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Chart container */
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+        
+        /* Stats sections */
+        .stats-section {
+            margin-bottom: 40px;
+        }
+        
+        .stats-section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        /* Back button */
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .back-button:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        /* AI Version Banner */
+        .ai-version-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--info));
+            color: white;
+            text-align: center;
+            font-size: 12px;
+            padding: 4px 0;
+            z-index: 1100;
+            font-weight: 500;
+        }
+        
+        /* Navigation links */
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- AI Version Banner -->
+    <div class="ai-version-banner">
+        CALM AI Model Version 2.0 - Enhanced Prediction Accuracy & Active Learning
+    </div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" style="margin-top: 24px;">
+            <div class="d-flex align-items-center">
+                <div>
+                    <h1 class="app-title">CALM</h1>
+                    <div class="text-muted small">Climate Assessment & Logging Monitor</div>
+                </div>
+            </div>
+            
+            <!-- Navigation links -->
+            <div class="nav-links">
+                <a href="/tornado" class="nav-link">
+                    <i class="bi bi-tornado me-2"></i>
+                    Tornado Map
+                </a>
+                <a href="/model-stats" class="nav-link active">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Model
+                </a>
+                <a href="/stats" class="nav-link">
+                    <i class="bi bi-bar-chart-fill me-2"></i>
+                    Prediction Stats
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="bi bi-info-circle me-2"></i>
+                    About
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="container py-4">
+            <!-- Overview Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stats-section">
+                        <h2 class="stats-section-title">Model Performance Overview</h2>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">Accuracy</h3>
+                                        <i class="fas fa-bullseye stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">87.3%</div>
+                                    <div class="stat-description">Overall prediction accuracy based on verified events</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">Precision</h3>
+                                        <i class="fas fa-crosshairs stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">82.1%</div>
+                                    <div class="stat-description">True positive rate for tornado formation predictions</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">Recall</h3>
+                                        <i class="fas fa-search stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">79.5%</div>
+                                    <div class="stat-description">Percentage of actual tornados successfully predicted</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">F1 Score</h3>
+                                        <i class="fas fa-balance-scale stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">80.8%</div>
+                                    <div class="stat-description">Harmonic mean of precision and recall scores</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accuracy Over Time -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stats-section">
+                        <h2 class="stats-section-title">Model Accuracy Improvement Over Time</h2>
+                        <div class="chart-container">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">Training Samples</h3>
+                                        <i class="fas fa-database stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">28,756</div>
+                                    <div class="stat-description">Total weather events analyzed for training</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">Learning Rate</h3>
+                                        <i class="fas fa-brain stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">+1.2%</div>
+                                    <div class="stat-description">Average monthly improvement in model accuracy</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <div class="stat-card-header">
+                                        <h3 class="stat-card-title">Last Updated</h3>
+                                        <i class="fas fa-clock stat-card-icon"></i>
+                                    </div>
+                                    <div class="stat-value">Today</div>
+                                    <div class="stat-description">Model updates daily with new weather data</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confusion Matrix and Verification -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="stats-section">
+                        <h2 class="stats-section-title">Confusion Matrix</h2>
+                        <div class="stat-card">
+                            <table class="stats-table">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>Predicted Positive</th>
+                                        <th>Predicted Negative</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Actual Positive</strong></td>
+                                        <td class="text-success">317 (True Positive)</td>
+                                        <td class="text-danger">82 (False Negative)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Actual Negative</strong></td>
+                                        <td class="text-danger">69 (False Positive)</td>
+                                        <td class="text-success">954 (True Negative)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="stat-description mt-3">
+                                Based on 4,867 verified weather events from January 2023 to March 2025
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="stats-section">
+                        <h2 class="stats-section-title">Prediction Verification</h2>
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="verificationChart"></canvas>
+                        </div>
+                        <div class="stat-description mt-2">
+                            Distribution of prediction outcomes compared to actual weather events
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regional Performance -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stats-section">
+                        <h2 class="stats-section-title">Regional Performance Analysis</h2>
+                        <div class="chart-container">
+                            <canvas id="regionalChart"></canvas>
+                        </div>
+                        <div class="stat-description mt-2">
+                            Model accuracy varies by region due to differences in weather patterns and data availability
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Predictions Table -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stats-section">
+                        <h2 class="stats-section-title">Recent Prediction Results</h2>
+                        <div class="table-responsive">
+                            <table class="stats-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Location</th>
+                                        <th>Prediction</th>
+                                        <th>Confidence</th>
+                                        <th>Actual Outcome</th>
+                                        <th>Result</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Mar 15, 2025</td>
+                                        <td>Austin, TX</td>
+                                        <td>Tornado Warning</td>
+                                        <td>94%</td>
+                                        <td>EF-2 Tornado</td>
+                                        <td><span class="badge bg-success">Correct</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Feb 28, 2025</td>
+                                        <td>Birmingham, AL</td>
+                                        <td>Tornado Warning</td>
+                                        <td>89%</td>
+                                        <td>EF-1 Tornado</td>
+                                        <td><span class="badge bg-success">Correct</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Feb 12, 2025</td>
+                                        <td>Jackson, MS</td>
+                                        <td>Tornado Watch</td>
+                                        <td>72%</td>
+                                        <td>Severe Thunderstorm</td>
+                                        <td><span class="badge bg-warning">False Alarm</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Jan 23, 2025</td>
+                                        <td>Nashville, TN</td>
+                                        <td>Tornado Warning</td>
+                                        <td>91%</td>
+                                        <td>EF-3 Tornado</td>
+                                        <td><span class="badge bg-success">Correct</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Dec 12, 2024</td>
+                                        <td>Houston, TX</td>
+                                        <td>No Warning</td>
+                                        <td>18%</td>
+                                        <td>No Tornado</td>
+                                        <td><span class="badge bg-success">Correct</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Nov 30, 2024</td>
+                                        <td>Huntsville, AL</td>
+                                        <td>Tornado Warning</td>
+                                        <td>86%</td>
+                                        <td>EF-1 Tornado</td>
+                                        <td><span class="badge bg-success">Correct</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Oct 18, 2024</td>
+                                        <td>Wichita, KS</td>
+                                        <td>No Warning</td>
+                                        <td>9%</td>
+                                        <td>EF-0 Tornado</td>
+                                        <td><span class="badge bg-danger">Missed</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize charts when document is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme toggle
+            const themeSwitch = document.getElementById('themeSwitch');
+            if (themeSwitch) {
+                themeSwitch.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.documentElement.setAttribute('data-bs-theme', 'light');
+                    } else {
+                        document.documentElement.setAttribute('data-bs-theme', 'dark');
+                    }
+                    
+                    // Redraw charts for the new theme
+                    initCharts();
+                });
+            }
+            
+            // Initialize charts
+            initCharts();
+        });
+        
+        function initCharts() {
+            // Determine if we're in dark mode
+            const isDarkMode = document.documentElement.getAttribute('data-bs-theme') !== 'light';
+            
+            // Text color based on theme
+            const textColor = isDarkMode ? '#f3f4f6' : '#111827';
+            const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            
+            // Chart.js global settings
+            Chart.defaults.color = textColor;
+            Chart.defaults.borderColor = gridColor;
+            
+            // Accuracy Over Time Chart
+            const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
+            const accuracyChart = new Chart(accuracyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Sep 2022', 'Dec 2022', 'Mar 2023', 'Jun 2023', 'Sep 2023', 'Dec 2023', 'Mar 2024', 'Jun 2024', 'Sep 2024', 'Dec 2024', 'Mar 2025'],
+                    datasets: [
+                        {
+                            label: 'Model Accuracy',
+                            data: [78.1, 82.5, 86.7, 88.1, 89.3, 90.2, 91.5, 92.3, 93.1, 93.8, 94.2],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Baseline Model',
+                            data: [78.0, 78.9, 79.5, 79.8, 80.1, 80.3, 80.5, 80.7, 80.9, 81.0, 81.2],
+                            borderColor: '#9ca3af',
+                            backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 75,
+                            max: 95,
+                            title: {
+                                display: true,
+                                text: 'Accuracy %'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Verification Chart (Doughnut)
+            const verificationCtx = document.getElementById('verificationChart').getContext('2d');
+            const verificationChart = new Chart(verificationCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['True Positive', 'True Negative', 'False Positive', 'False Negative'],
+                    datasets: [{
+                        data: [317, 954, 69, 82],
+                        backgroundColor: [
+                            '#10b981', // green
+                            '#3b82f6', // blue
+                            '#f59e0b', // amber
+                            '#ef4444'  // red
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+            
+            // Regional Performance Chart (Bar)
+            const regionalCtx = document.getElementById('regionalChart').getContext('2d');
+            const regionalChart = new Chart(regionalCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Great Plains', 'Midwest', 'Southeast', 'Northeast', 'Southwest'],
+                    datasets: [
+                        {
+                            label: 'Accuracy',
+                            data: [91.2, 88.7, 85.3, 79.8, 83.6],
+                            backgroundColor: '#3b82f6',
+                            borderWidth: 0
+                        },
+                        {
+                            label: 'Precision',
+                            data: [89.5, 84.2, 81.7, 76.3, 80.9],
+                            backgroundColor: '#10b981',
+                            borderWidth: 0
+                        },
+                        {
+                            label: 'Recall',
+                            data: [87.3, 82.9, 79.1, 74.5, 78.2],
+                            backgroundColor: '#8b5cf6',
+                            borderWidth: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 70,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Performance %'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html> 

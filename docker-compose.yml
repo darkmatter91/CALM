@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: calm-tornado-prediction
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+      - calm_data:/app/data
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development  # Override production setting from Dockerfile during development
+      - FLASK_DEBUG=True
+      - PORT=5000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  calm_data:
+    name: calm_tornado_data 

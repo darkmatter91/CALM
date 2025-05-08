@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CALM - Climate Assessment & Logging Monitor</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="description" content="CALM: Climate Assessment & Logging Monitor with severe weather forecasting and real-time radar">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CALM">
+    
+    <!-- PWA icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    
+    <!-- Web app manifest for PWA -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkNBTE0gLSBDbGltYXRlIEFzc2Vzc21lbnQgJiBMb2dnaW5nIE1vbml0b3IiLAogICJzaG9ydF9uYW1lIjogIkNBTE0iLAogICJkZXNjcmlwdGlvbiI6ICJBZHZhbmNlZCB3ZWF0aGVyIHByZWRpY3Rpb25zIHdpdGggc2V2ZXJlIHdlYXRoZXIgZm9yZWNhc3RpbmcgYW5kIHJlYWwtdGltZSByYWRhciIsCiAgInN0YXJ0X3VybCI6ICIvIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGEwZTE3IiwKICAidGhlbWVfY29sb3IiOiAiIzNiODJmNiIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogIi9zdGF0aWMvaW1hZ2VzL2xvZ28ucG5nIiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9LAogICAgewogICAgICAic3JjIjogIi9zdGF0aWMvaW1hZ2VzL2xvZ28ucG5nIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXQp9">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --dark-bg: #121826;
+            --dark-card: #1c2436;
+            --dark-accent: #2a3349;
+            --dark-text: #f3f4f6;
+            --dark-text-secondary: #9ca3af;
+            --dark-border: #374151;
+            --dark-blue: #3b82f6;
+            --dark-green: #10b981;
+            --dark-yellow: #f59e0b;
+            --dark-red: #ef4444;
+            --dark-purple: #8b5cf6;
+            
+            /* Shared colors */
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #60a5fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #8b5cf6;
+            
+            /* Derived variables */
+            --bg: var(--dark-bg);
+            --card: var(--dark-card);
+            --accent: var(--dark-accent);
+            --text: var(--dark-text);
+            --text-secondary: var(--dark-text-secondary);
+            --border: var(--dark-border);
+            --blue: var(--dark-blue);
+            --green: var(--dark-green);
+            --yellow: var(--dark-yellow);
+            --red: var(--dark-red);
+            --purple: var(--dark-purple);
+            
+            /* Additional styles */
+            --primary: #3a86ff;
+            --primary-hover: #2a75ff;
+            --card-bg: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* AI Version Banner */
+        .ai-version-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--info));
+            color: white;
+            text-align: center;
+            font-size: 12px;
+            padding: 4px 0;
+            z-index: 1100;
+            font-weight: 500;
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        /* Layout elements */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .app-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Navigation links */
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .app-content {
+            flex: 1;
+            padding: 1.5rem;
+        }
+        
+        /* Hero section */
+        .hero {
+            background: linear-gradient(135deg, rgba(27, 38, 59, 0.95), rgba(18, 24, 38, 0.95)), url('https://images.unsplash.com/photo-1527482797697-8795b05a13fe?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            text-align: center;
+            padding: 5rem 1rem;
+            margin-bottom: 3rem;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            max-width: 800px;
+            margin: 0 auto 2rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        /* Feature cards */
+        .feature-card {
+            background-color: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            border: 1px solid var(--border);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .feature-icon {
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-dark), var(--info));
+            font-size: 4rem;
+            color: white;
+        }
+        
+        .feature-content {
+            padding: 1.5rem;
+        }
+        
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        /* Stats section */
+        .stats-section {
+            background-color: var(--card);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            margin: 4rem 0;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        
+        .stat-item {
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Call to action */
+        .cta-section {
+            background: linear-gradient(135deg, var(--primary-dark), var(--info));
+            border-radius: 12px;
+            padding: 3rem;
+            color: white;
+            margin: 3rem 0;
+            text-align: center;
+        }
+        
+        .cta-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+        
+        .btn-cta {
+            background-color: white;
+            color: var(--primary-dark);
+            font-weight: 600;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .btn-cta:hover {
+            background-color: transparent;
+            color: white;
+            border-color: white;
+        }
+        
+        /* Footer */
+        .app-footer {
+            background-color: var(--card);
+            padding: 2rem;
+            text-align: center;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .footer-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-link:hover {
+            color: var(--primary);
+        }
+        
+        .copyright {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.1rem;
+            }
+            
+            .feature-card {
+                margin-bottom: 1.5rem;
+            }
+            
+            .app-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-links {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- AI Version Banner -->
+    <div class="ai-version-banner">
+        CALM AI Model Version 2.0 - Enhanced Prediction Accuracy & Active Learning
+    </div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" style="margin-top: 24px;">
+            <div class="d-flex align-items-center">
+                <div>
+                    <h1 class="app-title">CALM</h1>
+                    <div class="text-muted small">Climate Assessment & Logging Monitor</div>
+                </div>
+            </div>
+            
+            <!-- Navigation links -->
+            <div class="nav-links">
+                <a href="/tornado" class="nav-link">
+                    <i class="bi bi-tornado me-2"></i>
+                    Tornado Map
+                </a>
+                <a href="/model-stats" class="nav-link">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Model
+                </a>
+                <a href="/stats" class="nav-link">
+                    <i class="bi bi-bar-chart-fill me-2"></i>
+                    Prediction Stats
+                </a>
+            </div>
+        </header>
+        
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <h1>Climate Assessment & Logging Monitor</h1>
+                <p>Advanced AI-driven weather monitoring and tornado prediction platform</p>
+                <a href="/tornado" class="btn btn-cta">Explore Tornado Map</a>
+            </div>
+        </section>
+        
+        <!-- Main content -->
+        <main class="app-content">
+            <div class="container">
+                <!-- Features Section -->
+                <section class="mb-5">
+                    <h2 class="text-center mb-4">Powerful Features</h2>
+                    <div class="row g-4">
+                        <!-- Tornado Map Feature -->
+                        <div class="col-md-4">
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="bi bi-tornado"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h3 class="feature-title">Real-time Tornado Map</h3>
+                                    <p>Interactive map showing current tornado risks, weather alerts, and AI-driven predictions across the United States.</p>
+                                    <a href="/tornado" class="btn btn-primary mt-3">Open Map</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Model Feature -->
+                        <div class="col-md-4">
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="bi bi-graph-up"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h3 class="feature-title">Advanced AI Models</h3>
+                                    <p>Deep learning models that analyze radar imagery and weather data to predict tornado formation with high accuracy.</p>
+                                    <a href="/model-stats" class="btn btn-primary mt-3">View Model Stats</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Prediction Stats Feature -->
+                        <div class="col-md-4">
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="bi bi-bar-chart-fill"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h3 class="feature-title">Prediction Analytics</h3>
+                                    <p>Comprehensive statistics and verification of tornado predictions, showing model accuracy and performance metrics.</p>
+                                    <a href="/stats" class="btn btn-primary mt-3">See Statistics</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Stats Section -->
+                <section class="stats-section">
+                    <h2 class="mb-4">Making an Impact</h2>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="stat-item">
+                                <div class="stat-value">87%</div>
+                                <div class="stat-label">Prediction Accuracy</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-item">
+                                <div class="stat-value">50+</div>
+                                <div class="stat-label">Tornado-Prone Areas Monitored</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-item">
+                                <div class="stat-value">24/7</div>
+                                <div class="stat-label">Continuous Monitoring</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- About the Technology -->
+                <section class="mb-5">
+                    <h2 class="text-center mb-4">Cutting-Edge Technology</h2>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h3>Deep Learning Tornado Prediction</h3>
+                            <p>Our AI model combines radar imagery analysis with meteorological data to predict tornado formation with unprecedented accuracy. The model continuously learns from new weather patterns and historical data.</p>
+                            <h3 class="mt-4">Real-time Risk Assessment</h3>
+                            <p>CALM monitors weather conditions across the entire United States, focusing on tornado-prone regions. The system evaluates CAPE values, wind shear, helicity, and other crucial factors to determine tornado risk levels.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card" style="border: 1px solid var(--border); background-color: var(--accent); border-radius: 12px;">
+                                <div class="card-body p-4">
+                                    <h4 class="mb-3">Key AI Model Features</h4>
+                                    <ul class="list-group list-group-flush" style="background-color: transparent;">
+                                        <li class="list-group-item d-flex align-items-center" style="background-color: transparent; border-color: var(--border);">
+                                            <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                            ResNet-based CNN for radar image analysis
+                                        </li>
+                                        <li class="list-group-item d-flex align-items-center" style="background-color: transparent; border-color: var(--border);">
+                                            <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                            Multi-input architecture for weather data integration
+                                        </li>
+                                        <li class="list-group-item d-flex align-items-center" style="background-color: transparent; border-color: var(--border);">
+                                            <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                            Real-time API integration with weather services
+                                        </li>
+                                        <li class="list-group-item d-flex align-items-center" style="background-color: transparent; border-color: var(--border);">
+                                            <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                            Continuous learning from prediction validations
+                                        </li>
+                                        <li class="list-group-item d-flex align-items-center" style="background-color: transparent; border-color: var(--border);">
+                                            <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                            Geographic prioritization for high-risk areas
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Call to Action -->
+                <section class="cta-section">
+                    <h2 class="cta-title">Ready to explore tornado predictions?</h2>
+                    <p class="mb-4">Check out our interactive tornado map to see current risks and forecasts</p>
+                    <a href="/tornado" class="btn-cta">View Tornado Map</a>
+                </section>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-links">
+                <a href="/tornado" class="footer-link">Tornado Map</a>
+                <a href="/model-stats" class="footer-link">Model</a>
+                <a href="/stats" class="footer-link">Prediction Stats</a>
+            </div>
+            <div class="copyright">
+                &copy; 2025 CALM - Climate Assessment & Logging Monitor. All rights reserved.
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

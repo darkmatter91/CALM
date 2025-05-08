@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CALM - Prediction Statistics</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="description" content="CALM: Climate Assessment & Logging Monitor with severe weather forecasting and real-time radar">
+    <meta name="theme-color" content="#0a0e17">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --dark-bg: #121826;
+            --dark-card: #1c2436;
+            --dark-accent: #2a3349;
+            --dark-text: #f3f4f6;
+            --dark-text-secondary: #9ca3af;
+            --dark-border: #374151;
+            --dark-blue: #3b82f6;
+            --dark-green: #10b981;
+            --dark-yellow: #f59e0b;
+            --dark-red: #ef4444;
+            --dark-purple: #8b5cf6;
+            
+            /* Derived variables - will change with theme */
+            --bg: var(--dark-bg);
+            --card: var(--dark-card);
+            --accent: var(--dark-accent);
+            --text: var(--dark-text);
+            --text-secondary: var(--dark-text-secondary);
+            --border: var(--dark-border);
+            --blue: var(--dark-blue);
+            --green: var(--dark-green);
+            --yellow: var(--dark-yellow);
+            --red: var(--dark-red);
+            --purple: var(--dark-purple);
+            
+            /* Additional styles */
+            --primary: #3a86ff;
+            --primary-dark: #2563eb;
+            --primary-hover: #2a75ff;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #8b5cf6;
+            --body-bg: #0f172a;
+            --card-bg: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* AI Version Banner */
+        .ai-version-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--info));
+            color: white;
+            text-align: center;
+            font-size: 12px;
+            padding: 4px 0;
+            z-index: 1100;
+            font-weight: 500;
+        }
+        
+        /* Layout elements */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .app-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Navigation links */
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .app-content {
+            flex: 1;
+            padding: 1.5rem;
+        }
+        
+        /* Cards */
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            overflow: hidden;
+            height: 100%;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--accent);
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        /* Stats */
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .low-accuracy {
+            color: var(--red);
+        }
+        
+        .medium-accuracy {
+            color: var(--yellow);
+        }
+        
+        .high-accuracy {
+            color: var(--green);
+        }
+        
+        .prediction-item {
+            border-left: 4px solid var(--border);
+            margin-bottom: 10px;
+            padding: 15px;
+            background-color: var(--accent);
+            border-radius: 8px;
+        }
+        
+        .prediction-item.correct {
+            border-left-color: var(--green);
+        }
+        
+        .prediction-item.incorrect {
+            border-left-color: var(--red);
+        }
+        
+        /* Page title */
+        .page-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(120deg, var(--blue), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .app-header {
+                padding: 1rem;
+            }
+            
+            .app-content {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- AI Version Banner -->
+    <div class="ai-version-banner">
+        CALM AI Model Version 2.0 - Enhanced Prediction Accuracy & Active Learning
+    </div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" style="margin-top: 24px;">
+            <div class="d-flex align-items-center">
+                <div>
+                    <h1 class="app-title">CALM</h1>
+                    <div class="text-muted small">Climate Assessment & Logging Monitor</div>
+                </div>
+            </div>
+            
+            <div class="nav-links">
+                <a href="/tornado" class="nav-link">
+                    <i class="bi bi-tornado me-2"></i>
+                    Tornado Map
+                </a>
+                <a href="/model-stats" class="nav-link">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Model
+                </a>
+                <a href="/stats" class="nav-link active">
+                    <i class="bi bi-bar-chart-fill me-2"></i>
+                    Prediction Stats
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="bi bi-info-circle me-2"></i>
+                    About
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="app-content">
+            <h2 class="page-title">Tornado Prediction AI Model Statistics</h2>
+            
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-header">Total Predictions</div>
+                        <div class="card-body">
+                            <div class="stat-value" id="total-predictions">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-header">AI Predictions</div>
+                        <div class="card-body">
+                            <div class="stat-value" id="ai-predictions">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-header">NWS Alerts</div>
+                        <div class="card-body">
+                            <div class="stat-value" id="nws-alerts">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-header">Validated</div>
+                        <div class="card-body">
+                            <div class="stat-value" id="validated-count">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Overall Accuracy</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h5>All-time</h5>
+                                    <div class="stat-value" id="all-time-accuracy">-</div>
+                                </div>
+                                <div class="col-6">
+                                    <h5>Last 7 Days</h5>
+                                    <div class="stat-value" id="recent-accuracy">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Accuracy by Risk Level</div>
+                        <div class="card-body">
+                            <div class="row" id="risk-accuracy">
+                                <!-- Risk accuracy will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">Recent Validations</div>
+                        <div class="card-body" id="recent-validations">
+                            <!-- Recent validations will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Fetch and display statistics when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchStatistics();
+            
+            // Refresh stats every minute
+            setInterval(fetchStatistics, 60000);
+        });
+        
+        function fetchStatistics() {
+            fetch('/api/tornado/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayStatistics(data.statistics);
+                    } else {
+                        console.error('Error fetching statistics:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching statistics:', error);
+                });
+        }
+        
+        function displayStatistics(stats) {
+            // Update basic statistics
+            document.getElementById('total-predictions').textContent = stats.total_predictions;
+            document.getElementById('ai-predictions').textContent = stats.ai_predictions;
+            document.getElementById('nws-alerts').textContent = stats.nws_alerts;
+            document.getElementById('validated-count').textContent = stats.validated_count;
+            
+            // Update accuracy statistics
+            const allTimeAccuracy = document.getElementById('all-time-accuracy');
+            allTimeAccuracy.textContent = stats.all_time_accuracy.toFixed(1) + '%';
+            setAccuracyColor(allTimeAccuracy, stats.all_time_accuracy);
+            
+            const recentAccuracy = document.getElementById('recent-accuracy');
+            recentAccuracy.textContent = stats.recent_accuracy.toFixed(1) + '%';
+            setAccuracyColor(recentAccuracy, stats.recent_accuracy);
+            
+            // Update risk level accuracy
+            const riskAccuracyContainer = document.getElementById('risk-accuracy');
+            riskAccuracyContainer.innerHTML = '';
+            
+            for (const [risk, data] of Object.entries(stats.risk_accuracy)) {
+                const col = document.createElement('div');
+                col.className = 'col-3 text-center';
+                
+                const riskTitle = document.createElement('h6');
+                riskTitle.className = 'mb-2';
+                riskTitle.textContent = capitalizeFirstLetter(risk);
+                
+                const accuracyValue = document.createElement('div');
+                accuracyValue.className = 'fs-4 fw-bold';
+                accuracyValue.textContent = data.accuracy.toFixed(1) + '%';
+                setAccuracyColor(accuracyValue, data.accuracy);
+                
+                const totalValue = document.createElement('div');
+                totalValue.className = 'small text-muted';
+                totalValue.textContent = `${data.correct}/${data.total}`;
+                
+                col.appendChild(riskTitle);
+                col.appendChild(accuracyValue);
+                col.appendChild(totalValue);
+                
+                riskAccuracyContainer.appendChild(col);
+            }
+            
+            // Update recent validations
+            const recentValidationsContainer = document.getElementById('recent-validations');
+            recentValidationsContainer.innerHTML = '';
+            
+            if (stats.recent_validations.length === 0) {
+                recentValidationsContainer.innerHTML = '<p class="text-center">No validations available yet</p>';
+            } else {
+                stats.recent_validations.forEach(validation => {
+                    const validationItem = document.createElement('div');
+                    validationItem.className = `prediction-item ${validation.was_correct ? 'correct' : 'incorrect'}`;
+                    
+                    const header = document.createElement('div');
+                    header.className = 'd-flex justify-content-between align-items-center';
+                    
+                    const location = document.createElement('h5');
+                    location.className = 'mb-0';
+                    location.textContent = validation.location;
+                    
+                    const badge = document.createElement('span');
+                    badge.className = `badge ${validation.was_correct ? 'bg-success' : 'bg-danger'}`;
+                    badge.textContent = validation.was_correct ? 'Correct' : 'Incorrect';
+                    
+                    header.appendChild(location);
+                    header.appendChild(badge);
+                    
+                    const details = document.createElement('div');
+                    details.className = 'small mt-2';
+                    details.innerHTML = `
+                        <strong>Risk Level:</strong> ${capitalizeFirstLetter(validation.risk_level)} | 
+                        <strong>Formation Chance:</strong> ${validation.formation_chance}% | 
+                        <strong>Distance Error:</strong> ${validation.distance_error_km ? validation.distance_error_km.toFixed(1) + ' km' : 'N/A'}
+                    `;
+                    
+                    const notes = document.createElement('div');
+                    notes.className = 'mt-2 text-muted';
+                    notes.textContent = validation.notes;
+                    
+                    const time = document.createElement('div');
+                    time.className = 'mt-2 text-muted small text-end';
+                    time.textContent = new Date(validation.prediction_time).toLocaleString();
+                    
+                    validationItem.appendChild(header);
+                    validationItem.appendChild(details);
+                    validationItem.appendChild(notes);
+                    validationItem.appendChild(time);
+                    
+                    recentValidationsContainer.appendChild(validationItem);
+                });
+            }
+        }
+        
+        function setAccuracyColor(element, accuracy) {
+            element.classList.remove('low-accuracy', 'medium-accuracy', 'high-accuracy');
+            
+            if (accuracy < 40) {
+                element.classList.add('low-accuracy');
+            } else if (accuracy < 70) {
+                element.classList.add('medium-accuracy');
+            } else {
+                element.classList.add('high-accuracy');
+            }
+        }
+        
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+    </script>
+</body>
+</html> 

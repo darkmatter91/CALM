@@ -1,0 +1,2027 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CALM - Climate Assessment & Logging Monitor</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="description" content="Climate Assessment & Logging Monitor: Tornado risk visualization with formation spots and predicted tracks">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CALM">
+    
+    <!-- PWA icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom styling for the app -->
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --dark-bg: #121826;
+            --dark-card: #1c2436;
+            --dark-accent: #2a3349;
+            --dark-text: #f3f4f6;
+            --dark-text-secondary: #9ca3af;
+            --dark-border: #374151;
+            --dark-blue: #3b82f6;
+            --dark-green: #10b981;
+            --dark-yellow: #f59e0b;
+            --dark-red: #ef4444;
+            --dark-purple: #8b5cf6;
+            
+            /* Light theme */
+            --light-bg: #f9fafb;
+            --light-card: #ffffff;
+            --light-accent: #f3f4f6;
+            --light-text: #111827;
+            --light-text-secondary: #4b5563;
+            --light-border: #e5e7eb;
+            --light-blue: #3b82f6;
+            --light-green: #10b981;
+            --light-yellow: #f59e0b;
+            --light-red: #ef4444;
+            --light-purple: #8b5cf6;
+            
+            /* Shared colors */
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #60a5fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #8b5cf6;
+            
+            /* Derived variables - will change with theme */
+            --bg: var(--dark-bg);
+            --card: var(--dark-card);
+            --accent: var(--dark-accent);
+            --text: var(--dark-text);
+            --text-secondary: var(--dark-text-secondary);
+            --border: var(--dark-border);
+            --blue: var(--dark-blue);
+            --green: var(--dark-green);
+            --yellow: var(--dark-yellow);
+            --red: var(--dark-red);
+            --purple: var(--dark-purple);
+        }
+        
+        /* Light theme overrides */
+        [data-bs-theme="light"] {
+            --bg: var(--light-bg);
+            --card: var(--light-card);
+            --accent: var(--light-accent);
+            --text: var(--light-text);
+            --text-secondary: var(--light-text-secondary);
+            --border: var(--light-border);
+            --blue: var(--light-blue);
+            --green: var(--light-green);
+            --yellow: var(--light-yellow);
+            --red: var(--light-red);
+            --purple: var(--light-purple);
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        /* Layout elements */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .app-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Navigation links */
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .app-content {
+            flex: 1;
+            display: flex;
+            padding: 1.5rem;
+        }
+
+        /* Map styles */
+        .map-container {
+            position: relative;
+            height: calc(100vh - 150px);
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Map loading spinner */
+        .map-loading-spinner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .spinner-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .loading-text {
+            display: block;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Legend styles */
+        .legend-container {
+            position: absolute;
+            bottom: 20px;
+            right: 10px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 14px;
+            border-radius: 8px;
+            max-width: 260px;
+            line-height: 1.5;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* AI prediction styles */
+        .ai-prediction-polygon {
+            animation: pulse-opacity 2s infinite alternate;
+            transition: all 0.3s ease;
+        }
+        
+        .ai-prediction-circle {
+            animation: pulse-size 3s infinite alternate;
+        }
+        
+        @keyframes pulse-opacity {
+            0% { opacity: 0.2; }
+            100% { opacity: 0.5; }
+        }
+        
+        @keyframes pulse-size {
+            0% { transform: scale(0.95); }
+            100% { transform: scale(1.05); }
+        }
+        
+        .ai-prediction-marker {
+            z-index: 1000;
+        }
+
+        /* Popup styles */
+        .popup-content {
+            padding: 10px;
+            max-width: 250px;
+            min-width: 200px;
+        }
+        
+        .popup-title {
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 8px;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .popup-text {
+            font-size: 13px;
+            margin-bottom: 5px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        /* Back button */
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .back-button:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        /* Model stats link */
+        .model-stats-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+        
+        .model-stats-link:hover {
+            background-color: var(--info);
+            color: white;
+        }
+        
+        /* Refresh control */
+        .refresh-control {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .refresh-btn {
+            background-color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .refresh-btn:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .last-updated {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 4px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .refresh-btn.spinning i {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Pulsing circle animation for predictions */
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 0.7;
+            }
+        }
+        
+        .pulsing-circle {
+            animation: pulse 2s infinite ease-in-out;
+        }
+        
+        /* Styling for the tornado cone */
+        .tornado-cone {
+            transition: fill-opacity 0.3s ease;
+        }
+        
+        .tornado-cone:hover {
+            fill-opacity: 0.8 !important;
+        }
+
+        /* Location search form */
+        .location-search-container {
+            margin: 1rem auto 2rem;
+            padding: 0 1.5rem;
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        .location-form {
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .location-form .input-group {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 100%;
+        }
+        
+        .location-form .form-control {
+            height: 50px;
+            min-width: 250px;
+            padding: 12px 16px;
+            font-size: 16px;
+            border-radius: 8px 0 0 8px;
+            line-height: 1.2;
+        }
+        
+        .location-form .btn {
+            height: 50px;
+            padding: 12px 16px;
+            font-size: 16px;
+            border-radius: 0 8px 8px 0;
+            box-sizing: border-box;
+        }
+
+        /* Improve popup rendering */
+        .leaflet-popup-content {
+            margin: 14px;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        /* Improve legend rendering */
+        .legend {
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 14px;
+            border-radius: 8px;
+            max-width: 260px;
+            line-height: 1.5;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .legend-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .legend-cone {
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 16px solid transparent;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        
+        .legend-label {
+            font-size: 12px;
+        }
+        
+        .legend-subheader {
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 3px;
+        }
+
+        /* Fix for no-alerts message */
+        .no-alerts-message div {
+            line-height: 1.5;
+            font-size: 14px;
+        }
+        
+        .no-alerts-message p {
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        /* Make sure icons are properly sized */
+        .fa-solid, .fa-brands {
+            line-height: 1;
+            vertical-align: middle;
+        }
+        
+        /* Fix app header spacing */
+        .app-header {
+            padding: 1.25rem 1.5rem;
+        }
+        
+        .app-title {
+            font-size: 1.6rem;
+            line-height: 1.4;
+        }
+
+        /* Leaflet specific styling improvements */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            padding: 2px;
+        }
+        
+        .leaflet-popup-content {
+            margin: 13px;
+            line-height: 1.6;
+        }
+        
+        .leaflet-container {
+            font: 14px/1.5 "Inter", Arial, Helvetica, sans-serif;
+        }
+        
+        /* Make sure all icons are properly sized */
+        .fa-solid, .fa-brands {
+            line-height: 1;
+            vertical-align: middle;
+        }
+        
+        /* Error message styling */
+        #errorMessage {
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            max-width: 600px;
+            margin: 15px auto 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Popup styling for risk level */
+        .popup-risk {
+            padding: 5px 10px;
+            color: white;
+            font-weight: bold;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        /* Styling for conditions list */
+        .popup-conditions {
+            margin: 5px 0 5px 15px;
+            padding: 0;
+        }
+        
+        .popup-conditions li {
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+        
+        /* Subtitle for popup sections */
+        .popup-subtitle {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 8px;
+            margin-bottom: 5px;
+        }
+
+        /* Add styles for the tornado prediction list panel */
+        .tornado-list-panel {
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 8px;
+            width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+            margin-bottom: 10px;
+        }
+        
+        .tornado-list-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .tornado-list-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .tornado-list-title i {
+            margin-right: 8px;
+            color: var(--warning);
+        }
+        
+        .tornado-list-toggle {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            padding: 0;
+            font-size: 14px;
+        }
+        
+        .tornado-list-content {
+            padding: 0;
+        }
+        
+        .tornado-list-item {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .tornado-list-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .tornado-list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tornado-location {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+        
+        .tornado-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .tornado-risk {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 8px;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .risk-extreme {
+            background-color: #800000;
+        }
+        
+        .risk-high {
+            background-color: #ff0000;
+        }
+        
+        .risk-moderate {
+            background-color: #ffa500;
+        }
+        
+        .risk-low {
+            background-color: #ffff00;
+            color: #333;
+        }
+        
+        .risk-very-low {
+            background-color: #90EE90;
+            color: #333;
+        }
+        
+        .prediction-age {
+            font-size: 10px;
+            margin-top: 4px;
+            padding: 2px 0;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .freshness-high {
+            color: rgba(144, 238, 144, 0.9);
+        }
+        
+        .freshness-medium {
+            color: rgba(255, 255, 0, 0.8);
+        }
+        
+        .freshness-low {
+            color: rgba(255, 165, 0, 0.8);
+        }
+        
+        .tornado-list-item {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tornado-list-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            transition: background-color 0.3s;
+        }
+        
+        .tornado-list-item:hover::before {
+            background-color: var(--primary);
+        }
+        
+        /* AI Model Dashboard Styles */
+        .model-dashboard .card {
+            transition: all 0.3s ease;
+        }
+        
+        .pulsing-circle {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.3);
+            }
+            100% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+        }
+        
+        .popup-content {
+            min-width: 250px;
+        }
+        
+        .popup-risk {
+            padding: 5px 8px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 4px 4px 0 0;
+            margin: -1px -1px 8px -1px;
+        }
+        
+        .popup-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .popup-subtitle {
+            font-size: 12px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .popup-text {
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+        
+        .popup-conditions {
+            font-size: 11px;
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        
+        .popup-conditions li {
+            margin-bottom: 2px;
+        }
+
+        /* AI Version Banner */
+        .ai-version-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--info));
+            color: white;
+            text-align: center;
+            font-size: 12px;
+            padding: 4px 0;
+            z-index: 1100;
+            font-weight: 500;
+        }
+        
+        /* Active alerts panel */
+        .alerts-panel {
+            position: absolute;
+            top: 20px;
+            left: 10px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.85);
+            border-radius: 8px;
+            width: 350px;
+            max-width: 350px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .alerts-header {
+            background-color: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 10px 14px;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .alerts-body {
+            padding: 10px;
+        }
+        
+        .alert-item {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--danger);
+            font-size: 12px;
+        }
+        
+        .alert-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        
+        .alert-info {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 5px;
+            font-size: 11px;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+        
+        /* Alert details button */
+        .alert-details-btn {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.1);
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 5px;
+            width: fit-content;
+        }
+        
+        .alert-details-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 1);
+        }
+        
+        /* Predictions list panel */
+        .predictions-panel {
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.75);
+            border-radius: 8px;
+            width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .predictions-header {
+            background-color: rgba(59, 130, 246, 0.5);
+            color: white;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .predictions-body {
+            padding: 10px;
+        }
+        
+        .prediction-item {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .prediction-item:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .prediction-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .prediction-title {
+            font-weight: 600;
+            margin-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .prediction-reason {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 6px 8px;
+            margin-top: 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: none;
+        }
+        
+        .prediction-item.expanded .prediction-reason {
+            display: block;
+        }
+        
+        .prediction-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .prediction-badge.high {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .prediction-badge.moderate {
+            background-color: var(--warning);
+            color: black;
+        }
+        
+        .prediction-badge.low {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        /* Timer indicator for prediction updates */
+        .update-timer {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .timer-circle {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: conic-gradient(var(--primary) 0% 0%, rgba(255, 255, 255, 0.2) 0% 100%);
+            position: relative;
+        }
+        
+        .timer-circle::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        
+        /* Custom modal for alert details */
+        .custom-modal {
+            display: none;
+            position: fixed;
+            z-index: 1200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+        }
+        
+        .modal-content {
+            position: relative;
+            background-color: var(--dark-card);
+            margin: 10% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            background-color: var(--dark-accent);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .close-modal {
+            color: var(--text);
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        
+        .close-modal:hover {
+            color: var(--primary);
+        }
+        
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        /* NOAA-style alert patterns */
+        .alert-polygon {
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: all 0.2s ease;
+        }
+        
+        .hatched-overlay {
+            pointer-events: none;
+        }
+        
+        /* Alert details styling */
+        .alert-detail-header {
+            margin-bottom: 15px;
+        }
+        
+        .alert-area {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .alert-expires {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .alert-description {
+            margin-bottom: 15px;
+        }
+        
+        .alert-description-text p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .alert-instruction h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--warning);
+        }
+        
+        .alert-instruction-text p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        /* ... existing styles ... */
+        
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 30px;
+            height: 30px;
+            margin: 10px auto;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-container {
+            width: 100%;
+            max-width: 200px;
+            background-color: #444;
+            border-radius: 5px;
+            margin: 10px auto;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        /* Make sure the predictions panel is large enough when displaying loading state */
+        .predictions-panel {
+            min-height: 200px;
+        }
+        
+        #predictionsLoading {
+            color: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <!-- AI Version Banner -->
+    <div class="ai-version-banner">
+        CALM AI Model Version 2.0 - Enhanced Prediction Accuracy & Active Learning
+    </div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" style="margin-top: 24px;">
+            <div class="d-flex align-items-center">
+                <div>
+                    <h1 class="app-title">CALM</h1>
+                    <div class="text-muted small">Climate Assessment & Logging Monitor</div>
+                </div>
+            </div>
+            
+            <!-- Navigation links -->
+            <div class="nav-links">
+                <a href="/tornado" class="nav-link active">
+                    <i class="bi bi-tornado me-2"></i>
+                    Tornado Map
+                </a>
+                <a href="/model-stats" class="nav-link">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Model
+                </a>
+                <a href="/stats" class="nav-link">
+                    <i class="bi bi-bar-chart-fill me-2"></i>
+                    Prediction Stats
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="bi bi-info-circle me-2"></i>
+                    About
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="app-content">
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <!-- Active NWS/NOAA Alerts Panel -->
+                <div class="alerts-panel">
+                    <div class="alerts-header">
+                        <span><i class="fa-solid fa-triangle-exclamation me-1"></i> Active Weather Alerts</span>
+                        <button id="alertsRefreshBtn" class="btn btn-sm btn-dark px-2 py-1" title="Refresh Alerts">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+                    <div class="alerts-body" id="alertsContainer">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+                            <div class="mt-2 small">Loading alerts...</div>
+                        </div>
+                    </div>
+                    <div class="alerts-footer p-2 text-center" style="border-top: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: rgba(255,255,255,0.5);">
+                        <span id="lastUpdated">Last updated: Just now</span>
+                    </div>
+                </div>
+                
+                <!-- Active Predictions Panel -->
+                <div class="predictions-panel">
+                    <div class="predictions-header">
+                        <span><i class="fa-solid fa-robot me-1"></i> AI Predictions</span>
+                        <span class="badge bg-primary" id="prediction-count">0 active</span>
+                    </div>
+                    <div class="predictions-body" id="predictionsContainer">
+                        <!-- AI Predictions loading state - will be shown/hidden via JS -->
+                        <div id="predictionsLoading" class="p-3 text-center">
+                            <h6 class="mb-2">Processing AI Predictions</h6>
+                            <p class="small mb-2">Scanning radar and meteorological data...</p>
+                            <div class="spinner mb-2"></div>
+                            <div class="progress-container mb-2">
+                                <div class="progress-bar" id="predictionProgress"></div>
+                            </div>
+                            <p id="progressText" class="small mb-0">0%</p>
+                            <p id="locationText" class="small text-muted">Loading...</p>
+                        </div>
+                        
+                        <!-- No predictions message - will be shown when no predictions are found -->
+                        <div id="no-predictions" class="text-center py-3 text-muted">
+                            <i class="fa-solid fa-check-circle mb-2" style="font-size: 1.5rem"></i>
+                            <div>No active predictions</div>
+                            <div class="small mt-2">There are currently no tornado predictions for the US.</div>
+                        </div>
+                        
+                        <!-- Predictions list - will be populated via JS -->
+                        <div id="predictions-list"></div>
+                    </div>
+                </div>
+                
+                <!-- Update timer -->
+                <div class="update-timer">
+                    <div class="timer-circle" id="updateTimerCircle"></div>
+                    <span>Next check in <span id="updateTimeRemaining">4:36</span></span>
+                </div>
+                
+                <!-- Legend container -->
+                <div id="legendContainer" class="legend-container"></div>
+            </div>
+        </main>
+        
+        <!-- Location search form commented out 
+        <div class="location-search-container">
+            <form id="locationForm" class="location-form">
+                <div class="input-group">
+                    <input type="text" id="zipcodeInput" class="form-control" placeholder="Enter ZIP code" required aria-label="ZIP Code">
+                    <button type="submit" class="btn btn-primary d-flex align-items-center">
+                        <i class="fa-solid fa-search me-2"></i>
+                        <span>Check Location</span>
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Add error message container -->
+            <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
+        </div>
+        -->
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+    <script src="{{ url_for('static', filename='js/tornado_location_search.js') }}"></script>
+    <!-- Use Font Awesome from cdnjs instead of kit -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Simple pattern support without the problematic library -->
+    <script>
+        // Simplified pattern support for Leaflet - just the essentials we need
+        if (window.L) {
+            L.SVG.include({
+                _updateStyle: function (layer) {
+                    var path = layer._path;
+                    var options = layer.options;
+
+                    if (!path) { return; }
+
+                    if (options.stroke) {
+                        path.setAttribute('stroke', options.color);
+                        path.setAttribute('stroke-opacity', options.opacity);
+                        path.setAttribute('stroke-width', options.weight);
+                        path.setAttribute('stroke-linecap', options.lineCap);
+                        path.setAttribute('stroke-linejoin', options.lineJoin);
+
+                        if (options.dashArray) {
+                            path.setAttribute('stroke-dasharray', options.dashArray);
+                        } else {
+                            path.removeAttribute('stroke-dasharray');
+                        }
+
+                        if (options.dashOffset) {
+                            path.setAttribute('stroke-dashoffset', options.dashOffset);
+                        } else {
+                            path.removeAttribute('stroke-dashoffset');
+                        }
+                    } else {
+                        path.setAttribute('stroke', 'none');
+                    }
+
+                    if (options.fill) {
+                        if (options.fillPattern) {
+                            path.setAttribute('fill', 'url(#' + options.fillPattern + ')');
+                        } else {
+                            path.setAttribute('fill', options.fillColor || options.color);
+                        }
+                        path.setAttribute('fill-opacity', options.fillOpacity);
+                        path.setAttribute('fill-rule', options.fillRule || 'evenodd');
+                    } else {
+                        path.setAttribute('fill', 'none');
+                    }
+                }
+            });
+        }
+    </script>
+    
+    <script>
+        // Global variables to store the map and markers
+        let map;
+        let markers = [];
+        let polygons = [];
+        let currentInfoWindow = null;
+        let predictionsData = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            displayPredictions();
+            loadWeatherAlerts();
+            
+            // Add refresh button event listener
+            document.getElementById('alertsRefreshBtn').addEventListener('click', function() {
+                loadWeatherAlerts();
+            });
+            
+            // Initialize the countdown timer
+            updateTimer();
+        });
+        
+        function initMap() {
+            // Create a Leaflet map centered on the US
+            map = L.map('map').setView([39.8283, -98.5795], 4);
+            
+            // Add the base tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+        
+        function displayPredictions() {
+            // Show loading state within predictions panel
+            document.getElementById('predictionsLoading').style.display = 'block';
+            document.getElementById('no-predictions').style.display = 'none';
+            document.getElementById('predictions-list').style.display = 'none';
+            
+            // Start progress simulation
+            simulateProgress();
+            
+            fetch('/api/tornado/predictions')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading state
+                    document.getElementById('predictionsLoading').style.display = 'none';
+                    
+                    // Store data globally
+                    predictionsData = data;
+                    
+                    // Clear existing markers and polygons
+                    clearMapMarkersAndPolygons();
+                    
+                    // Process and display the predictions
+                    const predictions = data.predictions || [];
+                    
+                    // Update the prediction count
+                    document.getElementById('prediction-count').textContent = predictions.length + " active";
+                    
+                    if (predictions.length === 0) {
+                        document.getElementById('no-predictions').style.display = 'block';
+                        document.getElementById('predictions-list').style.display = 'none';
+                        return;
+                    } else {
+                        document.getElementById('no-predictions').style.display = 'none';
+                        document.getElementById('predictions-list').style.display = 'block';
+                    }
+                    
+                    // Sort predictions by risk level (highest first)
+                    predictions.sort((a, b) => {
+                        const riskOrder = {'extreme': 4, 'high': 3, 'moderate': 2, 'low': 1};
+                        return riskOrder[b.risk_level] - riskOrder[a.risk_level];
+                    });
+                    
+                    // Create the predictions list
+                    const predictionsList = document.getElementById('predictions-list');
+                    predictionsList.innerHTML = '';
+                    
+                    predictions.forEach(prediction => {
+                        // Create the prediction card
+                        const card = createPredictionCard(prediction);
+                        predictionsList.appendChild(card);
+                        
+                        // Add the prediction to the map
+                        addPredictionToMap(prediction);
+                    });
+                    
+                    // Update the legend with the current map items
+                    updateLegend();
+                })
+                .catch(error => {
+                    document.getElementById('predictionsLoading').style.display = 'none';
+                    console.error('Error fetching predictions:', error);
+                    document.getElementById('prediction-count').textContent = '0 active';
+                    document.getElementById('no-predictions').style.display = 'block';
+                    document.getElementById('no-predictions').innerHTML = '<i class="fa-solid fa-exclamation-triangle mb-2" style="font-size: 1.5rem; color: #dc3545;"></i><div>Error loading predictions</div><div class="small mt-2">Please try again later.</div>';
+                    document.getElementById('predictions-list').style.display = 'none';
+                });
+        }
+        
+        // Remove the global loading overlay functions and keep only the embedded progress simulation
+        function simulateProgress() {
+            const progressBar = document.getElementById('predictionProgress');
+            const progressText = document.getElementById('progressText');
+            const locationText = document.getElementById('locationText');
+            const locations = [
+                'Scanning Oklahoma City area...',
+                'Analyzing Wichita radar data...',
+                'Checking Dallas-Fort Worth metroplex...',
+                'Examining Midwest locations...',
+                'Processing Great Lakes region...',
+                'Evaluating Tornado Alley conditions...',
+                'Analyzing Dixie Alley radar...',
+                'Checking Ohio Valley weather patterns...',
+                'Finalizing AI predictions...'
+            ];
+            
+            let progress = 0;
+            let locationIndex = 0;
+            
+            window.progressInterval = setInterval(() => {
+                // Calculate how much to increment (slower at the beginning, faster at the end)
+                let increment = progress < 20 ? 0.5 : 
+                              progress < 50 ? 0.8 : 
+                              progress < 80 ? 1.2 : 0.5;
+                
+                progress += increment;
+                
+                // Update location text occasionally
+                if (progress > (locationIndex + 1) * 10 && locationIndex < locations.length - 1) {
+                    locationIndex++;
+                    locationText.textContent = locations[locationIndex];
+                }
+                
+                // Cap progress at 95% - the final 5% happens when data is actually received
+                if (progress >= 95) {
+                    progress = 95;
+                    clearInterval(window.progressInterval);
+                    locationText.textContent = 'Almost there, finalizing results...';
+                }
+                
+                progressBar.style.width = progress + '%';
+                progressText.textContent = Math.floor(progress) + '%';
+            }, 300);
+        }
+        
+        /**
+         * Clear all markers and polygons from the map
+         */
+        function clearMapMarkersAndPolygons() {
+            // Remove all markers
+            if (markers && markers.length) {
+                markers.forEach(marker => {
+                    if (map) {
+                        map.removeLayer(marker);
+                    }
+                });
+                markers = [];
+            }
+            
+            // Remove all polygons
+            if (polygons && polygons.length) {
+                polygons.forEach(polygon => {
+                    if (map) {
+                        map.removeLayer(polygon);
+                    }
+                });
+                polygons = [];
+            }
+        }
+        
+        /**
+         * Create a prediction card for display in the predictions panel
+         * @param {Object} prediction - The prediction data
+         * @returns {HTMLElement} The card element
+         */
+        function createPredictionCard(prediction) {
+            const card = document.createElement('div');
+            card.className = 'prediction-item';
+            card.setAttribute('data-id', prediction.id);
+            
+            // Set background color based on risk level
+            let riskColor = '';
+            switch (prediction.risk_level) {
+                case 'extreme':
+                    riskColor = 'rgba(128, 0, 0, 0.3)'; // Dark red background
+                    break;
+                case 'high':
+                    riskColor = 'rgba(255, 0, 0, 0.3)'; // Red background
+                    break;
+                case 'moderate':
+                    riskColor = 'rgba(255, 165, 0, 0.3)'; // Orange background
+                    break;
+                default:
+                    riskColor = 'rgba(255, 255, 0, 0.2)'; // Yellow background
+            }
+            card.style.backgroundColor = riskColor;
+            
+            // Source indicator (NWS or AI)
+            const sourceIcon = prediction.is_ai_prediction ? 
+                '<i class="fa-solid fa-robot me-1"></i>' : 
+                '<i class="fa-solid fa-triangle-exclamation me-1"></i>';
+            
+            // Create risk badge
+            const riskBadgeClass = `prediction-badge ${prediction.risk_level === 'low' ? 'low' : 
+                                              prediction.risk_level === 'moderate' ? 'moderate' : 'high'}`;
+            
+            card.innerHTML = `
+                <div class="prediction-title">
+                    ${prediction.name || prediction.location}
+                    <span class="${riskBadgeClass}">${prediction.risk_level.toUpperCase()}</span>
+                </div>
+                <div class="prediction-details">
+                    <div>${sourceIcon} ${prediction.is_ai_prediction ? 'AI Prediction' : 'NWS Alert'}</div>
+                    <div>${prediction.formation_chance || prediction.chance || 0}% chance</div>
+                </div>
+            `;
+            
+            // Add click event to center map on this prediction
+            card.addEventListener('click', () => {
+                // Center map on the prediction
+                if (map && prediction.lat && prediction.lon) {
+                    map.setView([prediction.lat, prediction.lon], 8);
+                    
+                    // Find and open popup for this prediction if it exists
+                    markers.forEach(marker => {
+                        if (marker.predictionId === prediction.id) {
+                            marker.openPopup();
+                        }
+                    });
+                }
+            });
+            
+            return card;
+        }
+        
+        /**
+         * Add a prediction to the map
+         * @param {Object} prediction - The prediction data
+         */
+        function addPredictionToMap(prediction) {
+            if (!map || !prediction.lat || !prediction.lon) return;
+            
+            // Determine color based on risk level
+            let color = '#FFFF00'; // Default yellow for low
+            switch (prediction.risk_level) {
+                case 'extreme':
+                    color = '#800000'; // Dark red
+                    break;
+                case 'high':
+                    color = '#FF0000'; // Red
+                    break;
+                case 'moderate':
+                    color = '#FFA500'; // Orange
+                    break;
+                case 'low':
+                    color = '#FFFF00'; // Yellow
+                    break;
+            }
+            
+            // Create marker
+            const marker = L.circleMarker([prediction.lat, prediction.lon], {
+                radius: 10,
+                fillColor: color,
+                color: '#000',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+            
+            // Add pulse animation class
+            marker._path && marker._path.classList.add('pulsing-circle');
+            
+            // Store prediction ID on marker for reference
+            marker.predictionId = prediction.id;
+            
+            // Add to markers array
+            markers.push(marker);
+            
+            // Create popup content
+            const formattedDate = new Date(prediction.timestamp).toLocaleString();
+            
+            // Create popup content
+            const popupContent = `
+                <div class="popup-content">
+                    <div class="popup-risk" style="background-color: ${color};">${prediction.risk_level.toUpperCase()} RISK</div>
+                    <div class="popup-title">${prediction.name || prediction.location}</div>
+                    <div class="popup-text"><strong>Formation Chance:</strong> ${prediction.formation_chance || prediction.chance || 0}%</div>
+                    <div class="popup-text"><strong>Source:</strong> ${prediction.is_ai_prediction ? 'AI Prediction' : 'NWS Alert'}</div>
+                    
+                    <div class="popup-subtitle">Weather Metrics:</div>
+                    <div class="popup-text"><strong>CAPE:</strong> ${prediction.cape || 'N/A'} J/kg</div>
+                    <div class="popup-text"><strong>Helicity:</strong> ${prediction.helicity || 'N/A'} m²/s²</div>
+                    <div class="popup-text"><strong>Wind Shear:</strong> ${prediction.shear || 'N/A'}</div>
+                    
+                    <div class="popup-text mt-2 text-muted small">Last Updated: ${formattedDate}</div>
+                </div>
+            `;
+            
+            // Bind popup to marker
+            marker.bindPopup(popupContent);
+            
+            // If prediction has a polygon, add it to the map
+            if (prediction.polygon) {
+                try {
+                    const geoJSONPolygon = prediction.polygon;
+                    const polygon = L.geoJSON(geoJSONPolygon, {
+                        style: {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.2,
+                            weight: 2
+                        }
+                    }).addTo(map);
+                    
+                    // Add to polygons array
+                    polygons.push(polygon);
+                } catch (e) {
+                    console.error('Error adding polygon to map:', e);
+                }
+            }
+        }
+        
+        /**
+         * Update the prediction count badge
+         * @param {number} count - The number of predictions
+         */
+        function updatePredictionCount(count) {
+            const countElement = document.getElementById('prediction-count');
+            if (countElement) {
+                countElement.textContent = count + ' active';
+            }
+        }
+        
+        /**
+         * Display a message when no predictions are found
+         */
+        function displayNoPredictionsMessage() {
+            const noPredictions = document.getElementById('no-predictions');
+            const predictionsList = document.getElementById('predictions-list');
+            
+            if (noPredictions) {
+                noPredictions.style.display = 'block';
+            }
+            
+            if (predictionsList) {
+                predictionsList.style.display = 'none';
+            }
+            
+            // Update the count to zero
+            updatePredictionCount(0);
+        }
+
+        /**
+         * Load weather alerts from the API
+         */
+        function loadWeatherAlerts() {
+            const alertsContainer = document.getElementById('alertsContainer');
+            
+            // Show loading state
+            alertsContainer.innerHTML = `
+                <div class="text-center py-2">
+                    <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+                    <div class="mt-2 small">Loading alerts...</div>
+                </div>
+            `;
+            
+            // Fetch alerts from API
+            fetch('/api/weather/alerts')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update the last updated timestamp
+                    const formattedTime = new Date().toLocaleTimeString();
+                    document.getElementById('lastUpdated').textContent = `Last updated: ${formattedTime}`;
+                    
+                    // Process and display alerts
+                    const alerts = data.alerts || [];
+                    
+                    if (alerts.length === 0) {
+                        alertsContainer.innerHTML = `
+                            <div class="text-center py-3">
+                                <div class="mb-2"><i class="fa-solid fa-check-circle text-success"></i></div>
+                                <div>No active weather alerts</div>
+                            </div>
+                        `;
+                        updateLegend(); // Update the legend even if no alerts
+                        return;
+                    }
+                    
+                    // Sort alerts by severity
+                    alerts.sort((a, b) => {
+                        const severityOrder = {'extreme': 4, 'severe': 3, 'moderate': 2, 'minor': 1, 'unknown': 0};
+                        return severityOrder[b.severity.toLowerCase()] - severityOrder[a.severity.toLowerCase()];
+                    });
+                    
+                    // Clear container
+                    alertsContainer.innerHTML = '';
+                    
+                    // Remove existing alert polygons from the map
+                    if (polygons && polygons.length) {
+                        const alertPolygons = polygons.filter(p => p.isAlertPolygon);
+                        alertPolygons.forEach(polygon => {
+                            if (map) {
+                                map.removeLayer(polygon);
+                            }
+                        });
+                        // Keep only non-alert polygons
+                        polygons = polygons.filter(p => !p.isAlertPolygon);
+                    }
+                    
+                    // Add each alert
+                    alerts.forEach(alert => {
+                        // Determine color based on event type
+                        let bgClass = 'bg-warning bg-opacity-25';
+                        let mapColor = '#FFA500'; // Orange for most alerts
+                        
+                        if (alert.event.includes('Tornado')) {
+                            bgClass = 'bg-danger bg-opacity-25';
+                            mapColor = '#FF0000'; // Red for tornado alerts
+                        } else if (alert.event.includes('Flood')) {
+                            bgClass = 'bg-info bg-opacity-25';
+                            mapColor = '#3498DB'; // Blue for flood alerts
+                        } else if (alert.event.includes('Thunderstorm')) {
+                            mapColor = '#FF8C00'; // Dark orange for thunderstorms
+                        }
+                        
+                        // Create alert element for the panel
+                        const alertElement = document.createElement('div');
+                        alertElement.className = `alert-item p-2 mb-2 rounded ${bgClass}`;
+                        alertElement.innerHTML = `
+                            <div class="d-flex align-items-start">
+                                <div class="me-2">
+                                    <i class="fa-solid fa-triangle-exclamation text-${alert.event.includes('Tornado') ? 'danger' : 'warning'}"></i>
+                                </div>
+                                <div>
+                                    <div class="alert-title fw-bold">${alert.event}</div>
+                                    <div class="alert-area small">${alert.area}</div>
+                                    <div class="alert-expires small text-muted">
+                                        Expires: ${new Date(alert.expires).toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Add click event to show details
+                        alertElement.addEventListener('click', () => {
+                            showAlertDetails(alert);
+                        });
+                        
+                        // Add to container
+                        alertsContainer.appendChild(alertElement);
+                        
+                        // Add polygon to map if geometry is available
+                        if (alert.geometry && map) {
+                            try {
+                                const geoJSONPolygon = alert.geometry;
+                                const polygon = L.geoJSON(geoJSONPolygon, {
+                                    style: {
+                                        color: mapColor,
+                                        fillColor: mapColor,
+                                        fillOpacity: 0.2,
+                                        weight: 2,
+                                        dashArray: '5, 5' // Dashed line pattern
+                                    }
+                                }).addTo(map);
+                                
+                                // Mark this as an alert polygon
+                                polygon.isAlertPolygon = true;
+                                
+                                // Add a popup with alert info
+                                polygon.bindPopup(`
+                                    <div class="popup-content">
+                                        <div class="popup-title">${alert.event}</div>
+                                        <div class="popup-text">${alert.area}</div>
+                                        <div class="popup-text small">Expires: ${new Date(alert.expires).toLocaleString()}</div>
+                                    </div>
+                                `);
+                                
+                                // Add to polygons array for tracking
+                                polygons.push(polygon);
+                                
+                                // Center map on first alert polygon if none selected
+                                if (polygons.length === 1) {
+                                    const bounds = polygon.getBounds();
+                                    map.fitBounds(bounds);
+                                }
+                            } catch (e) {
+                                console.error('Error adding alert polygon to map:', e);
+                            }
+                        }
+                    });
+                    
+                    // Update the legend after adding polygons
+                    updateLegend();
+                })
+                .catch(error => {
+                    console.error('Error fetching alerts:', error);
+                    alertsContainer.innerHTML = `
+                        <div class="text-center py-3">
+                            <div class="mb-2"><i class="fa-solid fa-exclamation-triangle text-warning"></i></div>
+                            <div>Error loading alerts</div>
+                            <div class="small mt-2">Please try again later.</div>
+                        </div>
+                    `;
+                });
+        }
+        
+        /**
+         * Update the map legend to show AI predictions and weather alerts
+         */
+        function updateLegend() {
+            const legendContainer = document.getElementById('legendContainer');
+            if (!legendContainer) return;
+            
+            // Clear existing legend
+            legendContainer.innerHTML = '';
+            
+            // Create legend content
+            let content = `
+                <div class="legend-header">Map Legend</div>
+                
+                <div class="mb-2">
+                    <div class="legend-subheader">AI Predictions</div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: #800000; margin-right: 6px;"></span>
+                        <span class="legend-label">Extreme Risk</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: #FF0000; margin-right: 6px;"></span>
+                        <span class="legend-label">High Risk</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: #FFA500; margin-right: 6px;"></span>
+                        <span class="legend-label">Moderate Risk</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: #FFFF00; margin-right: 6px;"></span>
+                        <span class="legend-label">Low Risk</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="legend-subheader">Weather Alerts</div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 3px; background-color: #FF0000; margin-right: 6px; border-bottom: 3px dashed #FF0000;"></span>
+                        <span class="legend-label">Tornado Warning/Watch</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 3px; background-color: #FF8C00; margin-right: 6px; border-bottom: 3px dashed #FF8C00;"></span>
+                        <span class="legend-label">Severe Thunderstorm</span>
+                    </div>
+                    <div class="legend-item">
+                        <span style="display: inline-block; width: 16px; height: 3px; background-color: #3498DB; margin-right: 6px; border-bottom: 3px dashed #3498DB;"></span>
+                        <span class="legend-label">Flood Warning/Watch</span>
+                    </div>
+                </div>
+            `;
+            
+            // Set the legend content
+            legendContainer.innerHTML = content;
+        }
+        
+        /**
+         * Show alert details in a modal
+         * @param {Object} alert - The alert data
+         */
+        function showAlertDetails(alert) {
+            const modal = document.getElementById('alertDetailsModal');
+            const modalTitle = document.getElementById('alertModalTitle');
+            const modalBody = document.getElementById('alertModalBody');
+            
+            // Set title
+            modalTitle.textContent = alert.event;
+            
+            // Set content
+            modalBody.innerHTML = `
+                <div class="alert-detail-header">
+                    <div class="alert-area">${alert.area}</div>
+                    <div class="alert-expires">
+                        Valid until ${new Date(alert.expires).toLocaleString()}
+                    </div>
+                </div>
+                
+                <div class="alert-description mb-3">
+                    <h3>Description</h3>
+                    <div class="alert-description-text">
+                        ${alert.description.split('\n').map(p => `<p>${p}</p>`).join('')}
+                    </div>
+                </div>
+                
+                ${alert.instruction ? `
+                <div class="alert-instruction">
+                    <h3>Recommended Actions</h3>
+                    <div class="alert-instruction-text">
+                        ${alert.instruction.split('\n').map(p => `<p>${p}</p>`).join('')}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div class="alert-meta text-muted mt-4">
+                    <small>Alert ID: ${alert.id}</small>
+                </div>
+            `;
+            
+            // Show modal
+            modal.style.display = 'block';
+            
+            // Add close functionality
+            const closeModal = modal.querySelector('.close-modal');
+            closeModal.onclick = function() {
+                modal.style.display = 'none';
+            };
+            
+            // Close when clicking outside the modal
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        }
+
+        /**
+         * Update the countdown timer
+         */
+        function updateTimer() {
+            let timeRemaining = 300; // 5 minutes in seconds
+            const timerElement = document.getElementById('updateTimeRemaining');
+            const timerCircle = document.getElementById('updateTimerCircle');
+            
+            function updateTimerDisplay() {
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Update the timer circle progress
+                const progress = ((300 - timeRemaining) / 300) * 100;
+                timerCircle.style.background = `conic-gradient(var(--primary) 0% ${progress}%, rgba(255, 255, 255, 0.2) ${progress}% 100%)`;
+                
+                if (timeRemaining <= 0) {
+                    // Reset the timer and refresh data
+                    timeRemaining = 300;
+                    loadWeatherAlerts();
+                    displayPredictions();
+                } else {
+                    timeRemaining--;
+                }
+            }
+            
+            // Update the timer immediately
+            updateTimerDisplay();
+            
+            // Update the timer every second
+            setInterval(updateTimerDisplay, 1000);
+        }
+    </script>
+    
+    <!-- Alert Details Modal -->
+    <div id="alertDetailsModal" class="custom-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="alertModalTitle">Alert Details</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body" id="alertModalBody">
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2">Loading alert details...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
