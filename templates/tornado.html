@@ -258,6 +258,16 @@
             margin-top: 2px;
         }
 
+        .legend-section-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 10px;
+            margin-bottom: 6px;
+            padding-bottom: 3px;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
+        }
+
         /* AI prediction styles */
         .ai-prediction-polygon {
             transition: all 0.3s ease;
@@ -1228,6 +1238,61 @@
         #predictionsLoading {
             color: rgba(255, 255, 255, 0.9);
         }
+        
+        /* Alert filter styles */
+        .alerts-filters {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        .alerts-filters .form-check-inline {
+            margin-right: 4px;
+        }
+        
+        .alerts-filters .form-check-input {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .alerts-filters .form-check-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Filter indicators */
+        .alert-type-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        
+        .indicator-tornado-warning {
+            background-color: #FF0000;
+        }
+        
+        .indicator-tornado-watch {
+            background-color: #FF9900;
+        }
+        
+        .indicator-thunderstorm-warning {
+            background-color: #FF8C00;
+        }
+        
+        .indicator-thunderstorm-watch {
+            background-color: #FFCC00;
+        }
+        
+        #filterSelectAll {
+            font-size: 11px;
+            padding: 0;
+            text-decoration: none;
+        }
+        
+        #filterSelectAll:hover {
+            color: white !important;
+        }
     </style>
 </head>
 <body>
@@ -1279,6 +1344,43 @@
                         <button id="alertsRefreshBtn" class="btn btn-sm btn-dark px-2 py-1" title="Refresh Alerts">
                             <i class="fa-solid fa-arrows-rotate"></i>
                         </button>
+                    </div>
+                    <!-- Add filter options -->
+                    <div class="alerts-filters p-2 border-bottom border-secondary">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-muted">Filter by type:</span>
+                            <button id="filterSelectAll" class="btn btn-sm btn-link p-0 text-muted">All</button>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filter-tornado-warning" value="Tornado Warning" checked>
+                                <label class="form-check-label small" for="filter-tornado-warning">
+                                    <span class="alert-type-indicator indicator-tornado-warning"></span>
+                                    Tornado Warning
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filter-tornado-watch" value="Tornado Watch" checked>
+                                <label class="form-check-label small" for="filter-tornado-watch">
+                                    <span class="alert-type-indicator indicator-tornado-watch"></span>
+                                    Tornado Watch
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filter-severe-thunderstorm-warning" value="Severe Thunderstorm Warning" checked>
+                                <label class="form-check-label small" for="filter-severe-thunderstorm-warning">
+                                    <span class="alert-type-indicator indicator-thunderstorm-warning"></span>
+                                    Severe T-Storm Warning
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filter-severe-thunderstorm-watch" value="Severe Thunderstorm Watch" checked>
+                                <label class="form-check-label small" for="filter-severe-thunderstorm-watch">
+                                    <span class="alert-type-indicator indicator-thunderstorm-watch"></span>
+                                    Severe T-Storm Watch
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="alerts-body" id="alertsContainer">
                         <div class="text-center py-2">
@@ -1426,6 +1528,21 @@
             // Add refresh button event listener
             document.getElementById('alertsRefreshBtn').addEventListener('click', function() {
                 loadWeatherAlerts();
+            });
+            
+            // Add filter checkbox event listeners
+            document.querySelectorAll('.alerts-filters input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    filterAlerts();
+                });
+            });
+            
+            // Add select all button event listener
+            document.getElementById('filterSelectAll').addEventListener('click', function() {
+                document.querySelectorAll('.alerts-filters input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+                filterAlerts();
             });
             
             // Initialize the countdown timer
@@ -1674,7 +1791,7 @@
                     // Process and display the predictions
                     const predictions = data.predictions || [];
                     
-                    // Filter to only include AI predictions for the AI predictions panel
+                    // Filter to only include AI predictions and exclude NWS prediction alerts
                     const aiPredictions = predictions.filter(prediction => prediction.is_ai_prediction === true);
                     
                     // Update the prediction count with only AI predictions
@@ -1688,8 +1805,8 @@
                         document.getElementById('predictions-list').style.display = 'block';
                     }
                     
-                    // Add all predictions to map (both AI and NWS)
-                    predictions.forEach(prediction => {
+                    // Add only AI predictions to map (exclude NWS prediction alerts)
+                    aiPredictions.forEach(prediction => {
                         // Add the prediction to the map
                         addPredictionToMap(prediction);
                     });
@@ -2019,6 +2136,9 @@
                     // Process and display alerts
                     const alerts = data.alerts || [];
                     
+                    // Store alerts globally to support filtering
+                    window.allAlerts = alerts;
+                    
                     if (alerts.length === 0) {
                         alertsContainer.innerHTML = `
                             <div class="text-center py-3">
@@ -2030,111 +2150,8 @@
                         return;
                     }
                     
-                    // Sort alerts by severity
-                    alerts.sort((a, b) => {
-                        const severityOrder = {'extreme': 4, 'severe': 3, 'moderate': 2, 'minor': 1, 'unknown': 0};
-                        return severityOrder[b.severity.toLowerCase()] - severityOrder[a.severity.toLowerCase()];
-                    });
-                    
-                    // Clear container
-                    alertsContainer.innerHTML = '';
-                    
-                    // Remove existing alert polygons from the map
-                    if (polygons && polygons.length) {
-                        const alertPolygons = polygons.filter(p => p.isAlertPolygon);
-                        alertPolygons.forEach(polygon => {
-                            if (map) {
-                                map.removeLayer(polygon);
-                            }
-                        });
-                        // Keep only non-alert polygons
-                        polygons = polygons.filter(p => !p.isAlertPolygon);
-                    }
-                    
-                    // Add each alert
-                    alerts.forEach(alert => {
-                        // Determine color based on event type
-                        let bgClass = 'bg-warning bg-opacity-25';
-                        let mapColor = '#FFA500'; // Orange for most alerts
-                        
-                        if (alert.event.includes('Tornado')) {
-                            bgClass = 'bg-danger bg-opacity-25';
-                            mapColor = '#FF0000'; // Red for tornado alerts
-                        } else if (alert.event.includes('Flood')) {
-                            bgClass = 'bg-info bg-opacity-25';
-                            mapColor = '#3498DB'; // Blue for flood alerts
-                        } else if (alert.event.includes('Thunderstorm')) {
-                            mapColor = '#FF8C00'; // Dark orange for thunderstorms
-                        }
-                        
-                        // Create alert element for the panel
-                        const alertElement = document.createElement('div');
-                        alertElement.className = `alert-item p-2 mb-2 rounded ${bgClass}`;
-                        alertElement.innerHTML = `
-                            <div class="d-flex align-items-start">
-                                <div class="me-2">
-                                    <i class="fa-solid fa-triangle-exclamation text-${alert.event.includes('Tornado') ? 'danger' : 'warning'}"></i>
-                                </div>
-                                <div>
-                                    <div class="alert-title fw-bold">${alert.event}</div>
-                                    <div class="alert-area small">${alert.area}</div>
-                                    <div class="alert-expires small text-muted">
-                                        Expires: ${new Date(alert.expires).toLocaleString()}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        // Add click event to show details
-                        alertElement.addEventListener('click', () => {
-                            showAlertDetails(alert);
-                        });
-                        
-                        // Add to container
-                        alertsContainer.appendChild(alertElement);
-                        
-                        // Add polygon to map if geometry is available
-                        if (alert.geometry && map) {
-                            try {
-                                const geoJSONPolygon = alert.geometry;
-                                const polygon = L.geoJSON(geoJSONPolygon, {
-                                    style: {
-                                        color: mapColor,
-                                        fillColor: mapColor,
-                                        fillOpacity: 0.2,
-                                        weight: 2,
-                                        dashArray: '5, 5' // Dashed line pattern
-                                    }
-                                }).addTo(map);
-                                
-                                // Mark this as an alert polygon
-                                polygon.isAlertPolygon = true;
-                                
-                                // Add a popup with alert info
-                                polygon.bindPopup(`
-                                    <div class="popup-content">
-                                        <div class="popup-title">${alert.event}</div>
-                                        <div class="popup-text">${alert.area}</div>
-                                        <div class="popup-text small">Expires: ${new Date(alert.expires).toLocaleString()}</div>
-                                    </div>
-                                `);
-                                
-                                // Add to polygons array for tracking
-                                polygons.push(polygon);
-                                
-                                // Center map on first alert polygon if none selected
-                                if (polygons.length === 1) {
-                                    const bounds = polygon.getBounds();
-                                    map.fitBounds(bounds);
-                                }
-                            } catch (e) {
-                                console.error('Error adding alert polygon to map:', e);
-                            }
-                        }
-                    });
-                    
-                    // Update the legend after adding polygons
-                    updateLegend();
+                    // Filter and display alerts
+                    filterAlerts();
                 })
                 .catch(error => {
                     console.error('Error fetching alerts:', error);
@@ -2146,6 +2163,160 @@
                         </div>
                     `;
                 });
+        }
+
+        /**
+         * Filter and sort alerts based on selected checkboxes
+         */
+        function filterAlerts() {
+            const alertsContainer = document.getElementById('alertsContainer');
+            
+            // Get all alerts
+            const alerts = window.allAlerts || [];
+            if (!alerts.length) return;
+            
+            // Get selected alert types
+            const selectedTypes = Array.from(document.querySelectorAll('.alerts-filters input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            // Filter alerts by selected types
+            const filteredAlerts = alerts.filter(alert => selectedTypes.includes(alert.event));
+            
+            // Define a specific order for alert types (highest priority first)
+            const typeOrder = {
+                'Tornado Warning': 4,
+                'Tornado Watch': 3,
+                'Severe Thunderstorm Warning': 2,
+                'Severe Thunderstorm Watch': 1
+            };
+            
+            // Sort alerts by type priority, then by severity within the same type
+            filteredAlerts.sort((a, b) => {
+                const typePriorityA = typeOrder[a.event] || 0;
+                const typePriorityB = typeOrder[b.event] || 0;
+                
+                // First sort by type priority
+                if (typePriorityB !== typePriorityA) {
+                    return typePriorityB - typePriorityA;
+                }
+                
+                // Then sort by severity for alerts of the same type
+                const severityOrder = {'extreme': 4, 'severe': 3, 'moderate': 2, 'minor': 1, 'unknown': 0};
+                return severityOrder[b.severity.toLowerCase()] - severityOrder[a.severity.toLowerCase()];
+            });
+            
+            // If no alerts after filtering
+            if (filteredAlerts.length === 0) {
+                alertsContainer.innerHTML = `
+                    <div class="text-center py-3">
+                        <div class="mb-2"><i class="fa-solid fa-filter text-info"></i></div>
+                        <div>No alerts match your filters</div>
+                        <div class="small mt-2">Try changing your filter settings.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Clear container
+            alertsContainer.innerHTML = '';
+            
+            // Remove existing alert polygons from the map
+            if (polygons && polygons.length) {
+                const alertPolygons = polygons.filter(p => p.isAlertPolygon);
+                alertPolygons.forEach(polygon => {
+                    if (map) {
+                        map.removeLayer(polygon);
+                    }
+                });
+                // Keep only non-alert polygons
+                polygons = polygons.filter(p => !p.isAlertPolygon);
+            }
+            
+            // Add each alert
+            filteredAlerts.forEach(alert => {
+                // Determine color based on event type
+                let bgClass = 'bg-warning bg-opacity-25';
+                let mapColor = '#FFA500'; // Orange for most alerts
+                
+                if (alert.event.includes('Tornado')) {
+                    bgClass = 'bg-danger bg-opacity-25';
+                    mapColor = alert.event.includes('Warning') ? '#FF0000' : '#FF9900'; // Red for warnings, orange for watches
+                } else if (alert.event.includes('Flood')) {
+                    bgClass = 'bg-info bg-opacity-25';
+                    mapColor = '#3498DB'; // Blue for flood alerts
+                } else if (alert.event.includes('Thunderstorm')) {
+                    bgClass = alert.event.includes('Warning') ? 'bg-warning bg-opacity-50' : 'bg-warning bg-opacity-25';
+                    mapColor = alert.event.includes('Warning') ? '#FF8C00' : '#FFCC00'; // Dark orange for warnings, yellow for watches
+                }
+                
+                // Create alert element for the panel
+                const alertElement = document.createElement('div');
+                alertElement.className = `alert-item p-2 mb-2 rounded ${bgClass}`;
+                alertElement.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <div class="me-2">
+                            <i class="fa-solid fa-triangle-exclamation text-${alert.event.includes('Tornado') ? 'danger' : 'warning'}"></i>
+                        </div>
+                        <div>
+                            <div class="alert-title fw-bold">${alert.event}</div>
+                            <div class="alert-area small">${alert.area}</div>
+                            <div class="alert-expires small text-muted">
+                                Expires: ${new Date(alert.expires).toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add click event to show details
+                alertElement.addEventListener('click', () => {
+                    showAlertDetails(alert);
+                });
+                
+                // Add to container
+                alertsContainer.appendChild(alertElement);
+                
+                // Add polygon to map if geometry is available
+                if (alert.geometry && map) {
+                    try {
+                        const geoJSONPolygon = alert.geometry;
+                        const polygon = L.geoJSON(geoJSONPolygon, {
+                            style: {
+                                color: mapColor,
+                                fillColor: mapColor,
+                                fillOpacity: 0.2,
+                                weight: 2,
+                                dashArray: '5, 5' // Dashed line pattern
+                            }
+                        }).addTo(map);
+                        
+                        // Mark this as an alert polygon
+                        polygon.isAlertPolygon = true;
+                        
+                        // Add a popup with alert info
+                        polygon.bindPopup(`
+                            <div class="popup-content">
+                                <div class="popup-title">${alert.event}</div>
+                                <div class="popup-text">${alert.area}</div>
+                                <div class="popup-text small">Expires: ${new Date(alert.expires).toLocaleString()}</div>
+                            </div>
+                        `);
+                        
+                        // Add to polygons array for tracking
+                        polygons.push(polygon);
+                        
+                        // Center map on first alert polygon if none selected
+                        if (polygons.length === 1) {
+                            const bounds = polygon.getBounds();
+                            map.fitBounds(bounds);
+                        }
+                    } catch (e) {
+                        console.error('Error adding alert polygon to map:', e);
+                    }
+                }
+            });
+            
+            // Update the legend after adding polygons
+            updateLegend();
         }
         
         /**
@@ -2160,31 +2331,44 @@
             legendTitle.innerText = 'Legend';
             legendContainer.appendChild(legendTitle);
             
-            // Check if any radar layer is active
-            let isRadarActive = false;
+            // Add AI Alerts section header
+            const aiHeader = document.createElement('div');
+            aiHeader.className = 'legend-section-header';
+            aiHeader.innerText = 'AI Tornado Alerts';
+            legendContainer.appendChild(aiHeader);
             
-            // Check all current layers
-            map.eachLayer(function(layer) {
-                if (layer.options && layer.options.isRadar) {
-                    isRadarActive = true;
-                }
-            });
-            
-            // Add radar legend item if radar is enabled
-            if (isRadarActive) {
-                addLegendItem(legendContainer, 'Weather Radar', 'linear-gradient(90deg, rgba(0,255,0,0.7) 0%, rgba(255,255,0,0.7) 25%, rgba(255,165,0,0.7) 50%, rgba(255,0,0,0.7) 75%, rgba(128,0,128,0.7) 100%)', 'Precipitation Intensity');
-            }
-            
-            // Tornado prediction items
+            // AI Alerts by risk level
             addLegendItem(legendContainer, 'Extreme Risk', 'rgba(128, 0, 0, 0.7)', 'Imminent tornado risk');
             addLegendItem(legendContainer, 'High Risk', 'rgba(255, 0, 0, 0.7)', 'Major tornado risk');
             addLegendItem(legendContainer, 'Moderate Risk', 'rgba(255, 165, 0, 0.7)', 'Moderate tornado risk');
             addLegendItem(legendContainer, 'Low Risk', 'rgba(255, 255, 0, 0.7)', 'Low tornado risk');
             
-            // Weather alert items
-            addLegendItem(legendContainer, 'Tornado Warning', '#ff0000', 'Tornado Warning from NWS');
-            addLegendItem(legendContainer, 'Tornado Watch', '#ff9900', 'Tornado Watch from NWS');
-            addLegendItem(legendContainer, 'Severe T-Storm', '#ffcc00', 'Severe Thunderstorm Warning');
+            // Add NWS Alerts section header
+            const nwsHeader = document.createElement('div');
+            nwsHeader.className = 'legend-section-header';
+            nwsHeader.innerText = 'NWS Alerts';
+            legendContainer.appendChild(nwsHeader);
+            
+            // Get selected alert types to only show active ones in the legend
+            const selectedTypes = Array.from(document.querySelectorAll('.alerts-filters input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            // NWS weather alert items
+            if (selectedTypes.includes('Tornado Warning')) {
+                addLegendItem(legendContainer, 'Tornado Warning', '#FF0000', 'Tornado Warning from NWS');
+            }
+            
+            if (selectedTypes.includes('Tornado Watch')) {
+                addLegendItem(legendContainer, 'Tornado Watch', '#FF9900', 'Tornado Watch from NWS');
+            }
+            
+            if (selectedTypes.includes('Severe Thunderstorm Warning')) {
+                addLegendItem(legendContainer, 'Severe T-Storm Warning', '#FF8C00', 'Severe Thunderstorm Warning');
+            }
+            
+            if (selectedTypes.includes('Severe Thunderstorm Watch')) {
+                addLegendItem(legendContainer, 'Severe T-Storm Watch', '#FFCC00', 'Severe Thunderstorm Watch');
+            }
         }
         
         /**

@@ -1590,8 +1590,8 @@ def get_tornado_predictions():
         
         current_time = datetime.now(timezone.utc)
         
-        # Check if we have cached predictions that are less than 30 minutes old
-        if cached_predictions and cache_timestamp and (current_time - cache_timestamp).total_seconds() < 1800:
+        # Check if we have cached predictions that are less than 5 minutes old
+        if cached_predictions and cache_timestamp and (current_time - cache_timestamp).total_seconds() < 300:
             print(f"Using cached predictions from {cache_timestamp.isoformat()}")
             
             # If batch_size is specified, return only that batch
