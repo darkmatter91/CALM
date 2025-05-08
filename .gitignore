@@ -1,4 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
+# Virtual Environment
+venv/
+ENV/
+env/
+.env
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Flask
+instance/
+.webassets-cache
+
+# Data files
+data/
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - PyCharm/IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Jupyter Notebook
+.ipynb_checkpoints
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project specific
+tornado_predictions.db
+tornado_predictions.log
+predictions.db
+*.cache
+
+# Nginx SSL
 nginx/ssl/server.crt
 nginx/ssl/server.key
-tornado_predictions.log
