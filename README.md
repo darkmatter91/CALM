@@ -20,23 +20,27 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 
 ## Features
 
-- **Real-time Tornado Predictions**: Combines NWS alerts with AI-generated predictions
+- **Real-time Tornado Predictions**: AI-generated predictions with advanced risk assessment
 - **Interactive Risk Visualization**: Color-coded map interface showing tornado risk levels
 - **Live Weather Alert Integration**: Direct integration with National Weather Service alerts
+- **Interactive Radar Overlays**: Multiple radar data sources including NOAA/NWS, RainViewer, and OpenWeatherMap with refresh capability
+- **Multiple Basemap Options**: Choose between Street Map, Satellite, or Topographic views
+- **Weather Alert Filtering**: Filter active NWS alerts by type (Tornado Warning, Tornado Watch, etc.)
+- **Organized Legend Display**: Categorized legend showing AI Alerts and NWS Alerts separately
 - **Continuous Learning**: Model that improves over time through validation and feedback
 - **Multi-factor Analysis**: Incorporates CAPE values, wind shear, helicity, and historical patterns
 - **Responsive Design**: Works seamlessly on desktop devices
 - **HTTPS Support**: Secure communications with SSL/TLS encryption for enhanced security
 - **AI-Only Prediction Panel**: Dedicated panel showing only AI model predictions, separate from NWS alerts
+- **API Response Caching**: Intelligent caching system to prevent rate limit issues with external APIs
 
 ## Coming Soon
 
-- **Interactive Radar Integration**: Real-time radar data visualization with animation controls
 - **Pattern Recognition**: Automated detection of mesocyclones and hook echoes in radar imagery
 - **Path Prediction**: More accurate forecasting of potential tornado tracks
 - **Impact Assessment**: Estimation of potential damage based on predicted storm intensity
 - **Mobile Browsing**: Native mobile web browsing experience with better formatting and web gui
-- **NEXRAD Integration**: Integration with the latest NEXRAD/NOAA radar maps
+- **Advanced NEXRAD Integration**: Enhanced integration with the latest NEXRAD/NOAA radar data
 
 ## AI Model Architecture
 
@@ -182,7 +186,7 @@ Note: Remember to set up automatic renewal for Let's Encrypt certificates as the
 - `GET /model-stats` - Model statistics and performance metrics
 
 ### Data Endpoints
-- `GET /api/tornado/predictions` - Current tornado predictions (both NWS and AI)
+- `GET /api/tornado/predictions` - Current tornado predictions (AI only)
 - `GET /api/weather/alerts` - Active weather alerts from NWS
 - `POST /api/predict` - Submit location for specific prediction
 
@@ -200,7 +204,15 @@ CALM integrates data from multiple free, public APIs:
 
 3. **Open-Meteo API**
    - Global weather data
+   - No API key required, responses cached to prevent rate limiting
+
+4. **RainViewer Radar API**
+   - Real-time precipitation radar data
    - No API key required
+
+5. **OpenWeatherMap**
+   - Alternative precipitation data source
+   - Basic features available without API key
 
 ## Technical Stack
 
