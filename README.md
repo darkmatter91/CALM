@@ -25,17 +25,18 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 - **Live Weather Alert Integration**: Direct integration with National Weather Service alerts
 - **Continuous Learning**: Model that improves over time through validation and feedback
 - **Multi-factor Analysis**: Incorporates CAPE values, wind shear, helicity, and historical patterns
-- **Responsive Design**: Works seamlessly on both desktop devices
+- **Responsive Design**: Works seamlessly on desktop devices
+- **HTTPS Support**: Secure communications with SSL/TLS encryption for enhanced security
+- **AI-Only Prediction Panel**: Dedicated panel showing only AI model predictions, separate from NWS alerts
 
 ## Coming Soon
 
-- **HTTPS**: HTTPS browsing experience with integrations with the latest NEXRAD/NOAA radar maps
-- **ZIP Code Search Functionality**: Enhanced location-based predictions with improved geocoding
 - **Interactive Radar Integration**: Real-time radar data visualization with animation controls
 - **Pattern Recognition**: Automated detection of mesocyclones and hook echoes in radar imagery
 - **Path Prediction**: More accurate forecasting of potential tornado tracks
 - **Impact Assessment**: Estimation of potential damage based on predicted storm intensity
 - **Mobile Browsing**: Native mobile web browsing experience with better formatting and web gui
+- **NEXRAD Integration**: Integration with the latest NEXRAD/NOAA radar maps
 
 ## AI Model Architecture
 
@@ -108,7 +109,7 @@ python app.py
 flask run
 ```
 
-### Method 2: Docker Installation
+### Method 2: Docker Installation with HTTPS
 
 1. Clone the repository:
 ```bash
@@ -116,13 +117,20 @@ git clone https://github.com/darkmatter91/CALM.git
 cd CALM
 ```
 
-2. Build and run with Docker Compose:
+2. Generate SSL certificates (for development purposes):
+```bash
+mkdir -p ./nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./nginx/ssl/nginx.key -out ./nginx/ssl/nginx.crt -subj "/CN=localhost"
+```
+
+3. Build and run with Docker Compose:
 ```bash
 docker-compose up --build
 ```
 
-3. Access the application:
-- Open a browser and navigate to `http://localhost:5000`
+4. Access the application:
+- Open a browser and navigate to `https://localhost`
+- For HTTP, use `http://localhost` (will redirect to HTTPS)
 
 #### Docker Commands Reference
 
@@ -133,6 +141,38 @@ docker-compose up --build
 | `docker-compose down` | Stop the application |
 | `docker-compose logs -f` | View logs |
 | `docker-compose restart` | Restart the application |
+
+### Production HTTPS Setup
+
+For production deployments, follow these steps to use proper SSL certificates:
+
+1. Obtain SSL certificates from a Certificate Authority (like Let's Encrypt):
+```bash
+# Install certbot
+apt-get update
+apt-get install certbot
+
+# Generate certificates for your domain
+certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+```
+
+2. Copy the certificates to your NGINX ssl directory:
+```bash
+cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ./nginx/ssl/nginx.crt
+cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ./nginx/ssl/nginx.key
+```
+
+3. Update `nginx/nginx.conf` server_name to match your domain:
+```
+server_name yourdomain.com www.yourdomain.com;
+```
+
+4. Build and run the application:
+```bash
+docker-compose up --build -d
+```
+
+Note: Remember to set up automatic renewal for Let's Encrypt certificates as they expire every 90 days.
 
 ## API Endpoints
 
@@ -169,6 +209,7 @@ CALM integrates data from multiple free, public APIs:
 - **Visualization**: Leaflet.js, Chart.js
 - **Frontend**: Bootstrap, HTML5, CSS3, JavaScript
 - **Data Processing**: NumPy, Pandas
+- **Security**: HTTPS with SSL/TLS via Nginx reverse proxy
 
 ## License
 
@@ -177,3 +218,18 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. 
+
+## Disclaimer
+
+**IMPORTANT: CALM is provided for educational and informational purposes only.**
+
+This software and its tornado predictions are not a replacement for official National Weather Service (NWS) or government-issued warnings and alerts. The creators, developers, and contributors of CALM:
+
+- Are not liable for any damages, injuries, or losses that may result from using or relying on this software
+- Do not guarantee the accuracy, completeness, or timeliness of any predictions or notifications
+- Are not responsible for any actions taken or not taken based on the information provided by this application
+- Make no warranty that the service will meet your requirements or be available on an uninterrupted, secure, or error-free basis
+
+Always rely on official government weather services for critical weather safety information and follow local emergency management instructions during severe weather events.
+
+By using CALM, you acknowledge and agree to these terms. 
