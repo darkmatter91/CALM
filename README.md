@@ -25,16 +25,17 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 - **Live Weather Alert Integration**: Direct integration with National Weather Service alerts
 - **Continuous Learning**: Model that improves over time through validation and feedback
 - **Multi-factor Analysis**: Incorporates CAPE values, wind shear, helicity, and historical patterns
-- **Responsive Design**: Works seamlessly on both desktop and mobile devices
+- **Responsive Design**: Works seamlessly on both desktop devices
 
 ## Coming Soon
 
+- **HTTPS**: HTTPS browsing experience with integrations with the latest NEXRAD/NOAA radar maps
 - **ZIP Code Search Functionality**: Enhanced location-based predictions with improved geocoding
 - **Interactive Radar Integration**: Real-time radar data visualization with animation controls
 - **Pattern Recognition**: Automated detection of mesocyclones and hook echoes in radar imagery
 - **Path Prediction**: More accurate forecasting of potential tornado tracks
 - **Impact Assessment**: Estimation of potential damage based on predicted storm intensity
-- **Mobile App**: Native mobile experience with push notifications for alerts
+- **Mobile Browsing**: Native mobile web browsing experience with better formatting and web gui
 
 ## AI Model Architecture
 
