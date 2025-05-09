@@ -2346,74 +2346,31 @@ def get_tornado_predictions():
                     weather_data = get_weather_data(area['lat'], area['lon'])
                     _, _, weather_metrics = convert_weather_conditions_to_severity(weather_data)
                     
-                    # ENHANCEMENT: Include tornado-prone region adjustments
-                    # Check if this area is in a known tornado-prone location and boost its metrics
-                    area_state = area['name'].split(', ')[1] if ', ' in area['name'] else ''
-                    
-                    # In certain regions, especially during tornado season, enhance the metrics
-                    current_month = datetime.now().month
-                    is_tornado_season = 3 <= current_month <= 6  # March-June primary tornado season
-                    
-                    # Define tornado-prone states
-                    tornado_alley_states = ['OK', 'KS', 'TX', 'NE', 'IA', 'MO']
-                    dixie_alley_states = ['AL', 'MS', 'TN', 'AR', 'LA']
-                    
-                    # Check for known tornado locations that are high-risk based on your alerts
-                    high_risk_locations = [
-                        'Mayfield, KY', 'Paducah, KY', 'Cairo, IL',  # Sites you mentioned
-                        'Moore, OK', 'Joplin, MO', 'Tuscaloosa, AL',  # Historical tornado hotspots
-                        'Xenia, OH', 'Greensburg, KS', 'Enterprise, AL',  # More historical sites
-                        'Springfield, IL', 'Carbondale, IL', 'Peoria, IL',  # IL locations from logs
-                        'Evansville, IN', 'Indianapolis, IN', 'Fort Wayne, IN',  # IN locations from logs
-                        'Itawamba, MS', 'Monroe, MS', 'Clay, MS', 'Lowndes, MS',  # MS locations from recent alerts
-                        'Chester, TN', 'Hardeman, TN', 'Hardin, TN'  # TN locations from recent alerts
-                    ]
-                    
-                    is_high_risk_location = area['name'] in high_risk_locations
-                    is_in_tornado_alley = area_state in tornado_alley_states
-                    is_in_dixie_alley = area_state in dixie_alley_states
-                    
-                    # Enhance metrics for high-risk areas during tornado season
-                    if is_high_risk_location or (is_tornado_season and (is_in_tornado_alley or is_in_dixie_alley)):
-                        # Instead of using the same exact values for all locations,
-                        # use more varied and realistic values based on the specific location
+                    # Always use real data from NWS - no static/test data
+                    if 'nws_forecast' in weather_data and weather_data['nws_forecast']:
+                        # Process and use NWS data
+                        nws_forecast = weather_data['nws_forecast']
                         
-                        # Base multiplier varies slightly by location
-                        # Different regions have different characteristics
-                        if is_in_tornado_alley:
-                            region_multiplier = 1.2  # Tornado Alley - higher CAPE, strong wind shear
-                        elif is_in_dixie_alley:
-                            region_multiplier = 1.1  # Dixie Alley - strong helicity
+                        # Get the CAPE and helicity values from actual NWS forecast
+                        if 'cape' in weather_metrics:
+                            cape_value = weather_metrics['cape']
                         else:
-                            region_multiplier = 1.0  # Other regions
+                            cape_value = 0
                             
-                        # Additional variation based on location name hash to avoid identical values
-                        # Get a deterministic but unique value for each location (0.8-1.2 range)
-                        name_hash = int(hashlib.md5(area['name'].encode()).hexdigest(), 16) % 1000 / 1000
-                        variation = 0.8 + (name_hash * 0.4)
-                        
-                        # Apply realistic enhancements with variation
-                        # CAPE: High risk areas typically 1000-3000
-                        base_cape = max(weather_metrics['cape'], 1200)  # Start with at least 1200
-                        weather_metrics['cape'] = int(min(3500, base_cape * region_multiplier * variation))
-                        
-                        # Helicity: High risk areas typically 150-300
-                        base_helicity = max(weather_metrics['helicity'], 120)  # Start with at least 120
-                        weather_metrics['helicity'] = int(min(350, base_helicity * region_multiplier * variation))
-                        
-                        # Wind Shear: High risk areas typically 25-45
-                        base_shear = max(weather_metrics['wind_shear'], 18)  # Start with at least 18
-                        weather_metrics['wind_shear'] = int(min(50, base_shear * region_multiplier * variation))
-                        
-                        # Use varied probability values instead of fixed
-                        weather_metrics['tornadic_probability'] = max(
-                            weather_metrics['tornadic_probability'],
-                            0.3 + (variation * 0.4)  # Range from 0.3 to 0.7
-                        )
-                        
-                        logger.info(f"Enhanced weather metrics for tornado-prone location: {area['name']} "
-                                   f"(CAPE={weather_metrics['cape']}, Helicity={weather_metrics['helicity']}, "
-                                   f"Wind Shear={weather_metrics['wind_shear']})")
+                        if 'helicity' in weather_metrics:
+                            helicity_value = weather_metrics['helicity']
+                        else:
+                            helicity_value = 0
+                            
+                        if 'wind_shear' in weather_metrics:
+                            wind_shear_value = weather_metrics['wind_shear']
+                        else:
+                            wind_shear_value = 0
+                            
+                        # Update metrics with real data
+                        weather_metrics['cape'] = cape_value
+                        weather_metrics['helicity'] = helicity_value
+                        weather_metrics['wind_shear'] = wind_shear_value
                     
                     # Get radar image
                     radar_image = tornado_ai.download_radar_image(area['lat'], area['lon'])
@@ -2431,27 +2388,17 @@ def get_tornado_predictions():
                                 grayscale = radar_image
                                 
                             # Check if most pixels are very low intensity (clear radar)
-                            # INCREASED threshold for stricter "clear" determination
                             threshold = 0.08  # Increased from 0.05
                             clear_percentage = np.mean(grayscale < threshold)
                             is_radar_clear = clear_percentage > 0.92  # Adjusted from 0.95
                             
                             # Determine if there's ANY meaningful radar activity (even slight)
-                            # This indicates some atmospheric activity worth investigating for tornadoes
                             activity_threshold = 0.3  # Increased from 0.2
                             activity_percentage = np.mean(grayscale > activity_threshold)
                             has_radar_activity = activity_percentage > 0.05  # Increased from 0.02
-                            
-                            # IMPORTANT: For any location with radar activity, boost helicity values
-                            # This ensures more realistic tornado probabilities from the model
-                            if has_radar_activity:
-                                # Even non-high-risk locations should have realistic helicity if there's radar activity
-                                weather_metrics['helicity'] = max(weather_metrics['helicity'], 150)  # Ensure minimum helicity
-                                weather_metrics['cape'] = max(weather_metrics['cape'], 1200)  # Ensure minimum CAPE
-                                logger.info(f"Boosted metrics for location with radar activity: {area['name']}")
                     
-                    # Only skip if radar is ABSOLUTELY clear and not a key tornado-prone location
-                    if is_radar_clear and area['name'] not in ['Moore, OK', 'Joplin, MO', 'Tuscaloosa, AL', 'Mayfield, KY', 'Greensburg, KS']:
+                    # Skip locations with clear radar
+                    if is_radar_clear:
                         logger.info(f"Skipping AI prediction for {area['name']} - radar is clear")
                         continue
                     
@@ -2466,7 +2413,7 @@ def get_tornado_predictions():
                         severity = ai_prediction.get('severity', 'LOW')
                         confidence = ai_prediction.get('confidence', 0)
                         
-                        # Create prediction object
+                        # Create prediction object using ONLY REAL DATA
                         pred_id = f"ai-{str(uuid.uuid4())[:8]}"
                         pred = {
                             'id': pred_id,
@@ -2478,9 +2425,9 @@ def get_tornado_predictions():
                             'direction': 'NE',  # Default direction
                             'speed': 25,  # Default speed
                             'cape': weather_metrics.get('cape', 0),
-                            'shear': weather_metrics.get('wind_shear', '25 knots'),
                             'helicity': weather_metrics.get('helicity', 0),
-                            'radar': 'AI analysis',
+                            'shear': f"{weather_metrics.get('wind_shear', 25)} knots",
+                            'radar': 'Live radar analysis',
                             'lat': area['lat'],
                             'lon': area['lon'],
                             'polygon': None,  # AI predictions don't have polygons yet
@@ -2492,9 +2439,6 @@ def get_tornado_predictions():
                             'confidence': confidence,
                             'priority': area.get('priority', 5)  # Include priority in prediction
                         }
-                        
-                        # Apply meteorological constraints based on prediction parameters
-                        # (Keep existing code for meteorological constraints)
                         
                         # Make sure risk is updated in all places
                         pred['risk'] = pred['risk_level']
@@ -2577,10 +2521,6 @@ def get_tornado_predictions():
                                 weather_data = get_weather_data(lat, lon)
                                 _, _, weather_metrics = convert_weather_conditions_to_severity(weather_data)
                                 
-                                # Set reasonable values for a potential tornadic environment
-                                weather_metrics['helicity'] = max(weather_metrics['helicity'], 150)
-                                weather_metrics['cape'] = max(weather_metrics['cape'], 1200)
-                                
                                 # Make prediction with AI model
                                 ai_prediction = tornado_ai.predict(radar_image, weather_metrics)
                                 
@@ -2607,9 +2547,9 @@ def get_tornado_predictions():
                                         'direction': 'NE',  # Default
                                         'speed': 25,  # Default
                                         'cape': weather_metrics.get('cape', 0),
-                                        'shear': weather_metrics.get('wind_shear', '25 knots'),
                                         'helicity': weather_metrics.get('helicity', 0),
-                                        'radar': 'Grid scan',
+                                        'shear': f"{weather_metrics.get('wind_shear', 25)} knots",
+                                        'radar': 'Live grid scan',
                                         'lat': lat,
                                         'lon': lon,
                                         'polygon': None,
@@ -2636,7 +2576,7 @@ def get_tornado_predictions():
             except Exception as e:
                 logger.error(f"Error scanning radar grid: {e}")
                 
-        # Cache the predictions for 30 minutes
+        # Cache the predictions for 5 minutes
         get_tornado_predictions.cached_predictions = predictions
         get_tornado_predictions.cache_timestamp = current_time
         get_tornado_predictions.processing_complete = True
