@@ -111,12 +111,12 @@ def log_prediction(prediction):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Check if prediction already exists
+        # Check if prediction already exists by ID
         cursor.execute("SELECT id FROM predictions WHERE id = ?", (prediction['id'],))
         if cursor.fetchone():
             logger.info(f"Prediction {prediction['id']} already logged")
             return True
-            
+        
         # Extract relevant data
         pred_id = prediction['id']
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -132,7 +132,47 @@ def log_prediction(prediction):
         is_ai_prediction = prediction.get('is_ai_prediction', False)
         nws_alert = prediction.get('nws_alert', False)
         
-        # Insert into database
+        # Check for similar predictions in the last 24 hours to avoid duplicates
+        # Only do this for AI predictions, not NWS alerts which we want to track separately
+        if is_ai_prediction:
+            one_day_ago = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+            cursor.execute("""
+                SELECT id FROM predictions 
+                WHERE location = ? 
+                AND risk_level = ? 
+                AND is_ai_prediction = TRUE
+                AND timestamp > ?
+                AND ABS(lat - ?) < 0.1
+                AND ABS(lon - ?) < 0.1
+                LIMIT 1
+            """, (location, risk_level, one_day_ago, lat, lon))
+            
+            existing_prediction = cursor.fetchone()
+            if existing_prediction:
+                logger.info(f"Similar prediction found for {location}, updating instead of creating new record")
+                
+                # Update the existing prediction with new data if needed
+                cursor.execute("""
+                    UPDATE predictions SET 
+                    timestamp = ?,
+                    formation_chance = ?,
+                    cape = ?,
+                    helicity = ?,
+                    shear = ?
+                    WHERE id = ?
+                """, (
+                    timestamp,
+                    formation_chance,
+                    cape,
+                    helicity, 
+                    shear,
+                    existing_prediction[0]
+                ))
+                
+                conn.commit()
+                return True
+        
+        # Insert into database as a new record
         cursor.execute('''
         INSERT INTO predictions (
             id, timestamp, prediction_time, lat, lon, location, risk_level,
@@ -2583,43 +2623,36 @@ def get_prediction_stats():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Get total predictions
-        cursor.execute("SELECT COUNT(*) FROM predictions")
-        total_predictions = cursor.fetchone()[0]
-        
-        # Get AI predictions count
-        cursor.execute("SELECT COUNT(*) FROM predictions WHERE is_ai_prediction = TRUE")
+        # Get unique AI predictions count only
+        cursor.execute("SELECT COUNT(DISTINCT id) FROM predictions WHERE is_ai_prediction = TRUE")
         ai_predictions = cursor.fetchone()[0]
         
-        # Get NWS alerts count
-        cursor.execute("SELECT COUNT(*) FROM predictions WHERE nws_alert = TRUE")
-        nws_alerts = cursor.fetchone()[0]
-        
-        # Get validated predictions count
-        cursor.execute("SELECT COUNT(*) FROM predictions WHERE validated = TRUE")
+        # Get validated predictions count (AI predictions only)
+        cursor.execute("SELECT COUNT(DISTINCT id) FROM predictions WHERE validated = TRUE AND is_ai_prediction = TRUE")
         validated_count = cursor.fetchone()[0]
         
-        # Get correct predictions count
+        # Get correct predictions count (AI predictions only)
         cursor.execute("""
-        SELECT COUNT(*) FROM validation_results 
-        WHERE was_correct = TRUE
+        SELECT COUNT(DISTINCT p.id) FROM validation_results vr
+        JOIN predictions p ON vr.prediction_id = p.id
+        WHERE vr.was_correct = TRUE AND p.is_ai_prediction = TRUE
         """)
         correct_count = cursor.fetchone()[0]
         
-        # Get last 7 days stats
+        # Get last 7 days stats (AI predictions only)
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
         
         cursor.execute("""
-        SELECT COUNT(*) FROM predictions 
-        WHERE date(prediction_time) >= ?
+        SELECT COUNT(DISTINCT id) FROM predictions 
+        WHERE date(prediction_time) >= ? AND is_ai_prediction = TRUE
         """, (seven_days_ago,))
         recent_predictions = cursor.fetchone()[0]
         
         cursor.execute("""
-        SELECT COUNT(*) FROM validation_results vr
+        SELECT COUNT(DISTINCT p.id) FROM validation_results vr
         JOIN predictions p ON vr.prediction_id = p.id
         WHERE date(p.prediction_time) >= ?
-        AND vr.was_correct = TRUE
+        AND vr.was_correct = TRUE AND p.is_ai_prediction = TRUE
         """, (seven_days_ago,))
         recent_correct = cursor.fetchone()[0]
         
@@ -2627,14 +2660,14 @@ def get_prediction_stats():
         all_time_accuracy = (correct_count / validated_count * 100) if validated_count > 0 else 0
         recent_accuracy = (recent_correct / recent_predictions * 100) if recent_predictions > 0 else 0
         
-        # Get accuracy by risk level
+        # Get accuracy by risk level (AI predictions only)
         risk_levels = ['low', 'moderate', 'high', 'extreme']
         risk_accuracy = {}
         
         for risk in risk_levels:
             cursor.execute("""
-            SELECT COUNT(*) FROM predictions
-            WHERE risk_level = ? AND validated = TRUE
+            SELECT COUNT(DISTINCT id) FROM predictions
+            WHERE risk_level = ? AND validated = TRUE AND is_ai_prediction = TRUE
             """, (risk,))
             risk_total = cursor.fetchone()[0]
             
@@ -2678,9 +2711,7 @@ def get_prediction_stats():
         return jsonify({
             'status': 'success',
             'statistics': {
-                'total_predictions': total_predictions,
                 'ai_predictions': ai_predictions,
-                'nws_alerts': nws_alerts,
                 'validated_count': validated_count,
                 'correct_count': correct_count,
                 'all_time_accuracy': all_time_accuracy,
@@ -2697,9 +2728,7 @@ def get_prediction_stats():
         return jsonify({
             'status': 'success',
             'statistics': {
-                'total_predictions': 0,
                 'ai_predictions': 0,
-                'nws_alerts': 0,
                 'validated_count': 0,
                 'correct_count': 0,
                 'all_time_accuracy': 0,

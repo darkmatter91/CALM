@@ -270,35 +270,27 @@
             <h2 class="page-title">Tornado Prediction AI Model Statistics</h2>
             
             <div class="row mb-4">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="card">
-                        <div class="card-header">Total Predictions</div>
+                        <div class="card-header">Total AI Predictions</div>
                         <div class="card-body">
                             <div class="stat-value" id="total-predictions">-</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card">
-                        <div class="card-header">AI Predictions</div>
-                        <div class="card-body">
-                            <div class="stat-value" id="ai-predictions">-</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card">
-                        <div class="card-header">NWS Alerts</div>
-                        <div class="card-body">
-                            <div class="stat-value" id="nws-alerts">-</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="card">
                         <div class="card-header">Validated</div>
                         <div class="card-body">
                             <div class="stat-value" id="validated-count">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">Correct Predictions</div>
+                        <div class="card-body">
+                            <div class="stat-value" id="correct-count">-</div>
                         </div>
                     </div>
                 </div>
@@ -375,10 +367,9 @@
         
         function displayStatistics(stats) {
             // Update basic statistics
-            document.getElementById('total-predictions').textContent = stats.total_predictions;
-            document.getElementById('ai-predictions').textContent = stats.ai_predictions;
-            document.getElementById('nws-alerts').textContent = stats.nws_alerts;
+            document.getElementById('total-predictions').textContent = stats.ai_predictions;
             document.getElementById('validated-count').textContent = stats.validated_count;
+            document.getElementById('correct-count').textContent = stats.correct_count;
             
             // Update accuracy statistics
             const allTimeAccuracy = document.getElementById('all-time-accuracy');
