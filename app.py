@@ -1467,6 +1467,11 @@ def model_stats():
     """Render the model statistics page."""
     return render_template('model_stats.html')
 
+@app.route('/about')
+def about():
+    """Render the about page with FAQs."""
+    return render_template('about.html')
+
 @app.route('/api/predict', methods=['GET', 'POST'])
 def predict():
     """Handle weather prediction requests using real data from free weather APIs."""

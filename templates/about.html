@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - CALM Tornado Prediction</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="description" content="CALM: Climate Assessment & Logging Monitor with severe weather forecasting and real-time radar">
+    <meta name="theme-color" content="#0a0e17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CALM">
+    
+    <!-- PWA icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --dark-bg: #121826;
+            --dark-card: #1c2436;
+            --dark-accent: #2a3349;
+            --dark-text: #f3f4f6;
+            --dark-text-secondary: #9ca3af;
+            --dark-border: #374151;
+            --dark-blue: #3b82f6;
+            --dark-green: #10b981;
+            --dark-yellow: #f59e0b;
+            --dark-red: #ef4444;
+            --dark-purple: #8b5cf6;
+            
+            /* Shared colors */
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #60a5fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #8b5cf6;
+            
+            /* Derived variables */
+            --bg: var(--dark-bg);
+            --card: var(--dark-card);
+            --accent: var(--dark-accent);
+            --text: var(--dark-text);
+            --text-secondary: var(--dark-text-secondary);
+            --border: var(--dark-border);
+            --blue: var(--dark-blue);
+            --green: var(--dark-green);
+            --yellow: var(--dark-yellow);
+            --red: var(--dark-red);
+            --purple: var(--dark-purple);
+            
+            /* Additional styles */
+            --primary: #3a86ff;
+            --primary-hover: #2a75ff;
+            --card-bg: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* AI Version Banner */
+        .ai-version-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--info));
+            color: white;
+            text-align: center;
+            font-size: 12px;
+            padding: 4px 0;
+            z-index: 1100;
+            font-weight: 500;
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        /* Layout elements */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .app-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-weight: 700;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Navigation links */
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .app-content {
+            flex: 1;
+            padding: 1.5rem;
+        }
+        
+        /* About page specific styles */
+        .about-intro {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .faq-section {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .faq-item {
+            margin-bottom: 2rem;
+            background-color: var(--card);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        
+        .faq-question {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .faq-answer {
+            color: var(--text);
+        }
+        
+        /* Footer */
+        .app-footer {
+            background-color: var(--card);
+            padding: 2rem;
+            text-align: center;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .footer-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-link:hover {
+            color: var(--primary);
+        }
+        
+        .copyright {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .app-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-links {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- AI Version Banner -->
+    <div class="ai-version-banner">
+        CALM AI Model Version 2.0 - Enhanced Prediction Accuracy & Active Learning
+    </div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" style="margin-top: 24px;">
+            <div class="d-flex align-items-center">
+                <div>
+                    <h1 class="app-title">CALM</h1>
+                    <div class="text-muted small">Climate Assessment & Logging Monitor</div>
+                </div>
+            </div>
+            
+            <!-- Navigation links -->
+            <div class="nav-links">
+                <a href="/" class="nav-link">
+                    <i class="bi bi-house-door me-2"></i>
+                    Home
+                </a>
+                <a href="/tornado" class="nav-link">
+                    <i class="bi bi-tornado me-2"></i>
+                    Tornado Map
+                </a>
+                <a href="/model-stats" class="nav-link">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Model
+                </a>
+                <a href="/stats" class="nav-link">
+                    <i class="bi bi-bar-chart-fill me-2"></i>
+                    Prediction Stats
+                </a>
+                <a href="/about" class="nav-link active">
+                    <i class="bi bi-info-circle me-2"></i>
+                    About
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="app-content">
+            <div class="container">
+                <div class="about-intro">
+                    <h1>About CALM Tornado Prediction</h1>
+                    <p class="lead">Understanding our AI-powered tornado prediction system</p>
+                </div>
+                
+                <div class="faq-section">
+                    <h2 class="mb-4">Frequently Asked Questions</h2>
+                    
+                    <div class="faq-item">
+                        <h3 class="faq-question">Why is there a prediction but nothing on the radar?</h3>
+                        <div class="faq-answer">
+                            <p>Our AI prediction system can detect subtle patterns that may not be visible to untrained eyes. While the radar may appear clear to casual observers, our advanced system can identify:</p>
+                            <ul>
+                                <li>Early-stage atmospheric instability patterns</li>
+                                <li>Subtle wind shear signatures that indicate potential for rotation</li>
+                                <li>Meteorological conditions favorable for rapid tornado development</li>
+                            </ul>
+                            <p>Additionally, the system analyzes multiple data points beyond radar imagery, including CAPE (Convective Available Potential Energy), helicity, and wind shear metrics from the National Weather Service. Tornadoes can form rapidly, sometimes within minutes, even when radar initially appears clear or shows only light precipitation.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3 class="faq-question">How does the prediction system work?</h3>
+                        <div class="faq-answer">
+                            <p>Our tornado prediction system operates through a multi-layered approach:</p>
+                            <ol>
+                                <li><strong>Data Collection:</strong> The system pulls real-time data from multiple sources:
+                                    <ul>
+                                        <li>NWS (National Weather Service) forecasts and alerts</li>
+                                        <li>NEXRAD radar imagery</li>
+                                        <li>Meteorological measurements (CAPE, helicity, wind shear)</li>
+                                        <li>Historical tornado patterns for the region</li>
+                                    </ul>
+                                </li>
+                                <li><strong>AI Analysis:</strong> Our deep learning model processes this data to:
+                                    <ul>
+                                        <li>Identify rotation patterns in radar imagery</li>
+                                        <li>Detect hook echoes and mesocyclone formations</li>
+                                        <li>Analyze atmospheric instability metrics</li>
+                                        <li>Calculate tornado probability based on current conditions</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Risk Assessment:</strong> The system calculates:
+                                    <ul>
+                                        <li>Formation probability (percentage chance of tornado development)</li>
+                                        <li>Risk level (low, moderate, high, extreme)</li>
+                                        <li>Geographic area of potential impact</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                            <p>The system continuously updates predictions as new data arrives, typically refreshing every 5-10 minutes.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3 class="faq-question">What algorithm powers the predictions?</h3>
+                        <div class="faq-answer">
+                            <p>Our prediction system uses a combination of state-of-the-art machine learning algorithms:</p>
+                            
+                            <h5>Neural Network Architecture</h5>
+                            <p>The core of our system is a dual-input neural network that processes both radar imagery and meteorological data:</p>
+                            <ul>
+                                <li><strong>Radar Analysis Branch:</strong> Uses a convolutional neural network (CNN) based on ResNet architecture to identify radar signatures associated with tornadic activity</li>
+                                <li><strong>Weather Data Branch:</strong> Analyzes meteorological variables through dense neural networks to identify atmospheric conditions favorable for tornadoes</li>
+                                <li><strong>Combined Output:</strong> Merges radar and weather data analysis to produce final predictions</li>
+                            </ul>
+                            
+                            <h5>Training Methodology</h5>
+                            <p>The model is trained on:</p>
+                            <ul>
+                                <li>Historical tornado events with associated radar imagery</li>
+                                <li>Weather conditions present during tornado formation</li>
+                                <li>Non-tornadic severe weather events (for comparison)</li>
+                                <li>Validated predictions with outcome data</li>
+                            </ul>
+                            
+                            <h5>Continuous Improvement</h5>
+                            <p>Our system employs active learning, continuously improving through:</p>
+                            <ul>
+                                <li>Validation of predictions against actual tornado occurrences</li>
+                                <li>Retraining with new meteorological data</li>
+                                <li>Periodic model updates to incorporate new storm patterns</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3 class="faq-question">What do the risk levels mean?</h3>
+                        <div class="faq-answer">
+                            <p>Our system uses four risk levels to indicate the severity and likelihood of tornado formation:</p>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered" style="background-color: var(--card); color: var(--text);">
+                                    <thead>
+                                        <tr>
+                                            <th>Risk Level</th>
+                                            <th>Formation Chance</th>
+                                            <th>Description</th>
+                                            <th>Recommended Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="badge bg-success">Low</span></td>
+                                            <td>10-30%</td>
+                                            <td>Minimal tornado risk; some factors favorable but limited instability</td>
+                                            <td>Stay weather aware; normal activities</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="badge bg-warning text-dark">Moderate</span></td>
+                                            <td>30-50%</td>
+                                            <td>Increased risk; favorable conditions developing</td>
+                                            <td>Monitor weather updates; be prepared to take shelter</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="badge bg-danger">High</span></td>
+                                            <td>50-75%</td>
+                                            <td>Significant risk; strong indicators of potential tornado formation</td>
+                                            <td>Stay alert; have shelter plan ready; monitor official warnings</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="badge" style="background-color: purple;">Extreme</span></td>
+                                            <td>75-100%</td>
+                                            <td>Highest risk level; tornado formation highly likely or already reported</td>
+                                            <td>Take immediate action; seek shelter if official warnings issued</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <p class="mt-3"><strong>Formation Chance</strong> indicates the percentage probability of a tornado developing based on current conditions. This calculation includes:</p>
+                            <ul>
+                                <li>CAPE values (measure of atmospheric instability)</li>
+                                <li>Helicity (measure of spin in the atmosphere)</li>
+                                <li>Wind shear (change in wind direction/speed with height)</li>
+                                <li>Presence of radar signatures like hook echoes or rotation</li>
+                            </ul>
+                            
+                            <p><strong>Note:</strong> Even a "Low" risk doesn't mean zero chance of a tornado. Always follow official NWS warnings and local emergency management guidance.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3 class="faq-question">What are CAPE, helicity, and wind shear values?</h3>
+                        <div class="faq-answer">
+                            <p>These are key meteorological indicators that help assess tornado potential:</p>
+                            
+                            <h5>CAPE (Convective Available Potential Energy)</h5>
+                            <p>CAPE measures atmospheric instability - the fuel for thunderstorms. Values are measured in Joules per kilogram (J/kg):</p>
+                            <ul>
+                                <li><strong>0-500 J/kg:</strong> Marginally unstable atmosphere</li>
+                                <li><strong>500-1500 J/kg:</strong> Moderately unstable</li>
+                                <li><strong>1500-3000 J/kg:</strong> Very unstable (strong thunderstorm potential)</li>
+                                <li><strong>3000+ J/kg:</strong> Extremely unstable (severe thunderstorm potential)</li>
+                            </ul>
+                            
+                            <h5>Helicity</h5>
+                            <p>Helicity measures the potential for rotation in a storm's updraft, indicating tornado potential. Measured in m²/s²:</p>
+                            <ul>
+                                <li><strong>0-150 m²/s²:</strong> Low tornado potential</li>
+                                <li><strong>150-300 m²/s²:</strong> Moderate tornado potential</li>
+                                <li><strong>300-450 m²/s²:</strong> High tornado potential</li>
+                                <li><strong>450+ m²/s²:</strong> Extreme tornado potential</li>
+                            </ul>
+                            
+                            <h5>Wind Shear</h5>
+                            <p>Wind shear is the change in wind speed or direction with height, critical for organizing storms. Measured in knots:</p>
+                            <ul>
+                                <li><strong>0-20 knots:</strong> Minimal shear (unorganized storms)</li>
+                                <li><strong>20-40 knots:</strong> Moderate shear (organized thunderstorms possible)</li>
+                                <li><strong>40-60 knots:</strong> Strong shear (supercell formation likely)</li>
+                                <li><strong>60+ knots:</strong> Extreme shear (favorable for significant tornadoes)</li>
+                            </ul>
+                            
+                            <p>Our AI model analyzes these values together, as the combination of these factors is more important than any single value alone.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-links">
+                <a href="/" class="footer-link">Home</a>
+                <a href="/tornado" class="footer-link">Tornado Map</a>
+                <a href="/model-stats" class="footer-link">Model</a>
+                <a href="/stats" class="footer-link">Prediction Stats</a>
+                <a href="/about" class="footer-link">About</a>
+            </div>
+            <div class="copyright">
+                &copy; 2025 CALM - Climate Assessment & Logging Monitor. All rights reserved.
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
