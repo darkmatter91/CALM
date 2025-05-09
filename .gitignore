@@ -73,37 +73,3 @@ nginx/ssl/server.crt
 nginx/ssl/server.key
 templates/tornado.html.bak
 tornado_predictions.db.bak
-
-# Node.js
-node_modules/
-frontend/node_modules/
-*/node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
-
-# React/Build output
-frontend/build/
-frontend/dist/
-**/build/
-**/dist/
-
-# Cache directories
-.cache/
-.parcel-cache/
-.next/
-.nuxt/
-.docusaurus/
-
-# Local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Other large directories/files
-**/__tests__/coverage/
-**/coverage/
-**/.nyc_output/
