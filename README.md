@@ -52,7 +52,6 @@ The vision for CALM is to create an accessible, accurate, and real-time tornado 
 
 ## Coming Soon
 
-- **REACT Frontend**: Working on migrating off of Flask for the frontend and leveraging a modular REACT app
 - **Path Prediction**: More accurate forecasting of potential tornado tracks
 - **Impact Assessment**: Estimation of potential damage based on predicted storm intensity
 - **Mobile Browsing**: Native mobile web browsing experience with better formatting and web gui
