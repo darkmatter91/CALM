@@ -277,9 +277,182 @@ def validate_predictions(days_ago=1):
         accuracy = (correct_count / validated_count) * 100 if validated_count > 0 else 0
         logger.info(f"Validation complete: {validated_count} predictions processed, {correct_count} correct ({accuracy:.1f}%)")
         
+        # Check if we should retrain the model based on validation results
+        if validated_count >= 10:  # Only consider retraining if we have enough validations
+            should_retrain = check_if_retraining_needed()
+            if should_retrain:
+                logger.info("Initiating automatic model retraining based on validation data")
+                retrain_model_with_validation_data()
+        
         return True
     except Exception as e:
         logger.error(f"Error validating predictions: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def check_if_retraining_needed():
+    """Check if model retraining is needed based on recent validation results."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get recent validation results (last 30 days)
+        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        
+        # Count total validations and correct predictions in last 30 days
+        cursor.execute('''
+        SELECT COUNT(*), SUM(CASE WHEN vr.was_correct = TRUE THEN 1 ELSE 0 END)
+        FROM validation_results vr
+        JOIN predictions p ON vr.prediction_id = p.id
+        WHERE vr.validated_at > ?
+        AND p.is_ai_prediction = TRUE
+        ''', (thirty_days_ago,))
+        
+        result = cursor.fetchone()
+        total_validations, correct_validations = result[0] or 0, result[1] or 0
+        
+        if total_validations < 10:
+            logger.info("Not enough recent validations for retraining decision")
+            return False
+        
+        # Calculate accuracy
+        recent_accuracy = (correct_validations / total_validations) * 100 if total_validations > 0 else 0
+        
+        # Get model's previous accuracy if available
+        previous_accuracy = getattr(tornado_ai, 'previous_accuracy', None)
+        
+        # Decide if retraining is needed
+        if previous_accuracy is None:
+            # No previous accuracy recorded, set it and don't retrain yet
+            tornado_ai.previous_accuracy = recent_accuracy
+            return False
+        
+        # Check if accuracy has significantly decreased (more than 5%)
+        if recent_accuracy < previous_accuracy - 5:
+            logger.info(f"Model accuracy has decreased from {previous_accuracy:.1f}% to {recent_accuracy:.1f}%, retraining needed")
+            return True
+            
+        # Check if we have enough new data (at least 30 validations) and some improvement is possible
+        if total_validations >= 30 and recent_accuracy < 85:
+            logger.info(f"Sufficient new validation data ({total_validations} samples) for potential model improvement")
+            return True
+            
+        logger.info(f"Model retraining not needed. Current accuracy: {recent_accuracy:.1f}%")
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error checking if retraining is needed: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def retrain_model_with_validation_data():
+    """Retrain the model using validated predictions from the database."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get validated predictions with their results
+        cursor.execute('''
+        SELECT 
+            p.id, p.lat, p.lon, p.location, p.risk_level, p.formation_chance,
+            p.cape, p.helicity, p.shear, vr.was_correct, vr.distance_error_km
+        FROM validation_results vr
+        JOIN predictions p ON vr.prediction_id = p.id
+        WHERE p.is_ai_prediction = TRUE
+        ORDER BY vr.validated_at DESC
+        LIMIT 500
+        ''')
+        
+        validated_data = cursor.fetchall()
+        logger.info(f"Retrieved {len(validated_data)} validated predictions for model retraining")
+        
+        if len(validated_data) < 20:
+            logger.warning("Not enough validated data for retraining")
+            return False
+        
+        # Prepare training data format
+        weather_metrics = []
+        labels = []
+        
+        # We can't easily retrieve the original radar images, so we'll use weather data only for retraining
+        for record in validated_data:
+            _, lat, lon, _, risk_level, formation_chance, cape, helicity, shear_str, was_correct, distance_km = record
+            
+            # Extract shear value from string (e.g. "25 knots" -> 25)
+            shear = 25  # Default
+            if shear_str and isinstance(shear_str, str):
+                shear_match = re.search(r'(\d+)', shear_str)
+                if shear_match:
+                    try:
+                        shear = int(shear_match.group(1))
+                    except:
+                        pass
+            
+            # Create weather metrics dictionary
+            metrics = {
+                'cape': cape or 1000,
+                'helicity': helicity or 100,
+                'wind_shear': shear,
+                'tornadic_probability': formation_chance / 100 if formation_chance else 0.1,
+            }
+            weather_metrics.append(metrics)
+            
+            # Create labels based on validation results
+            tornado = 1 if was_correct else 0
+            
+            # Map risk level to severity (0=low, 1=moderate, 2=high, 3=extreme)
+            severity_map = {'low': 0, 'moderate': 1, 'high': 2, 'extreme': 3}
+            severity = severity_map.get(risk_level.lower(), 0)
+            
+            labels.append({
+                'tornado': tornado,
+                'severity': severity
+            })
+        
+        # Create training data dictionary (without radar images)
+        training_data = {
+            'weather_metrics': weather_metrics,
+            'labels': labels,
+            'validation_based': True  # Flag to indicate this is validation-based training
+        }
+        
+        # Call the model's training function
+        # Only retrain the weather data component since we don't have radar images
+        logger.info("Starting validation-based model retraining")
+        result = tornado_ai.train(training_data, validation_split=0.2, epochs=30, batch_size=16)
+        
+        if result.get('status') == 'success':
+            logger.info("Model successfully retrained with validation data")
+            
+            # Update the model's previous accuracy
+            cursor.execute('''
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN vr.was_correct = TRUE THEN 1 ELSE 0 END) as correct
+            FROM validation_results vr
+            JOIN predictions p ON vr.prediction_id = p.id
+            WHERE p.is_ai_prediction = TRUE
+            ''')
+            
+            count_result = cursor.fetchone()
+            if count_result:
+                total, correct = count_result
+                if total > 0:
+                    accuracy = (correct / total) * 100
+                    tornado_ai.previous_accuracy = accuracy
+                    logger.info(f"Updated model's baseline accuracy to {accuracy:.1f}%")
+            
+            return True
+        else:
+            logger.error(f"Model retraining failed: {result.get('message')}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error retraining model: {e}")
         return False
     finally:
         if conn:
@@ -2112,7 +2285,7 @@ def get_tornado_predictions():
             prioritized_areas = prioritize_tornado_locations(tornado_prone_areas)
             
             # Use max_locations to limit API calls and processing
-            max_locations = 30
+            max_locations = 30  # Changed back to 30 as requested
             
             # Make sure we get a good regional distribution by picking top areas from different regions
             high_priority_areas = []
@@ -2130,7 +2303,7 @@ def get_tornado_predictions():
             region_counts = {region: 0 for region in regions}
             
             # First pass: Add at least 2 locations from each region
-            min_per_region = 2
+            min_per_region = 2  # Changed back to 2 as requested
             for area in prioritized_areas:
                 # Extract state code from name
                 name_parts = area['name'].split(', ')
@@ -2245,11 +2418,11 @@ def get_tornado_predictions():
                     # Get radar image
                     radar_image = tornado_ai.download_radar_image(area['lat'], area['lon'])
                     
-                    # Check if radar is clear (no significant echo/returns) - RELAXED THRESHOLDS
+                    # Check if radar is clear (no significant echo/returns) - STRICTER THRESHOLDS
                     is_radar_clear = False
                     has_radar_activity = False
                     if radar_image is not None:
-                        # Simple check - use lower threshold for considering radar clear
+                        # Simple check - use higher threshold for considering radar clear
                         if isinstance(radar_image, np.ndarray):
                             # Convert to grayscale if it's a color image
                             if len(radar_image.shape) == 3 and radar_image.shape[2] == 3:
@@ -2258,16 +2431,16 @@ def get_tornado_predictions():
                                 grayscale = radar_image
                                 
                             # Check if most pixels are very low intensity (clear radar)
-                            # REDUCED threshold and percentage required for "clear" determination
-                            threshold = 0.05  # Reduced from 0.1
+                            # INCREASED threshold for stricter "clear" determination
+                            threshold = 0.08  # Increased from 0.05
                             clear_percentage = np.mean(grayscale < threshold)
-                            is_radar_clear = clear_percentage > 0.95  # Increased from 0.9 (requires more emptiness)
+                            is_radar_clear = clear_percentage > 0.92  # Adjusted from 0.95
                             
                             # Determine if there's ANY meaningful radar activity (even slight)
                             # This indicates some atmospheric activity worth investigating for tornadoes
-                            activity_threshold = 0.2  # Pixel values above this are considered meaningful activity
+                            activity_threshold = 0.3  # Increased from 0.2
                             activity_percentage = np.mean(grayscale > activity_threshold)
-                            has_radar_activity = activity_percentage > 0.02  # Only 2% of pixels need to show activity
+                            has_radar_activity = activity_percentage > 0.05  # Increased from 0.02
                             
                             # IMPORTANT: For any location with radar activity, boost helicity values
                             # This ensures more realistic tornado probabilities from the model
@@ -2277,18 +2450,18 @@ def get_tornado_predictions():
                                 weather_metrics['cape'] = max(weather_metrics['cape'], 1200)  # Ensure minimum CAPE
                                 logger.info(f"Boosted metrics for location with radar activity: {area['name']}")
                     
-                    # Only skip if radar is ABSOLUTELY clear - RELAXED CHECK
-                    if is_radar_clear and area['name'] not in ['Paducah, KY', 'Mayfield, KY', 'Cairo, IL', 'Springfield, IL', 'Carbondale, IL']:
+                    # Only skip if radar is ABSOLUTELY clear and not a key tornado-prone location
+                    if is_radar_clear and area['name'] not in ['Moore, OK', 'Joplin, MO', 'Tuscaloosa, AL', 'Mayfield, KY', 'Greensburg, KS']:
                         logger.info(f"Skipping AI prediction for {area['name']} - radar is clear")
                         continue
                     
                     # Make prediction with AI model
                     ai_prediction = tornado_ai.predict(radar_image, weather_metrics)
                     
-                    # Only add predictions with significant probability - LOWERED THRESHOLD
+                    # Only add predictions with significant probability - INCREASED THRESHOLD
                     probability = ai_prediction.get('probability', 0)
-                    # Reduce threshold further to catch more potential events 
-                    if probability > 0.05:  # Reduced from 0.2 to be even more sensitive
+                    # Increase threshold to reduce number of predictions
+                    if probability > 0.25:  # Increased from 0.05 to 0.25
                         formation_chance = int(probability * 100)
                         severity = ai_prediction.get('severity', 'LOW')
                         confidence = ai_prediction.get('confidence', 0)
@@ -2353,7 +2526,7 @@ def get_tornado_predictions():
                 
                 # Limit the total number of points to check to avoid excessive API calls
                 # Randomly sample from the grid
-                max_grid_points = 20  # Maximum number of additional points to check
+                max_grid_points = 20  # Changed back to 20 as requested
                 
                 # Create a list of all grid points
                 grid_points = []
@@ -2413,7 +2586,7 @@ def get_tornado_predictions():
                                 
                                 # Only add predictions with significant probability
                                 probability = ai_prediction.get('probability', 0)
-                                if probability > 0.15:  # Higher threshold for grid points
+                                if probability > 0.30:  # Increased from 0.15 to 0.30 for stricter filtering
                                     # Get reverse geocode to find nearest location name
                                     location_name = get_location_name(lat, lon)
                                     if not location_name:

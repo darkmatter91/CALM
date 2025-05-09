@@ -491,81 +491,265 @@ class TornadoAI:
 
     def train(self, training_data: Dict[str, Any], validation_split: float = 0.2, 
               epochs: int = 50, batch_size: int = 32) -> Dict[str, Any]:
-        """Train the model with historical data.
+        """Train the tornado prediction model.
         
         Args:
-            training_data: Dictionary containing training data
-                - radar_images: List of radar images or file paths
-                - weather_metrics: List of weather metric dictionaries
-                - labels: List of dictionaries with 'tornado' (0/1) and 'severity' (0-3)
+            training_data: Dictionary with training data arrays
             validation_split: Fraction of data to use for validation
-            epochs: Number of training epochs
+            epochs: Number of epochs to train
             batch_size: Batch size for training
             
         Returns:
-            Dictionary containing training results and metrics
+            Dictionary with training results
         """
         try:
-            logger.info(f"Starting model training with {len(training_data.get('labels', []))} samples")
+            # Check if this is validation-based training (may not have radar data)
+            is_validation_based = training_data.get('validation_based', False)
             
-            # Extract training data
+            # Get the data
+            if is_validation_based and 'radar_images' not in training_data:
+                # For validation-based training without radar data, we only train the weather model
+                logger.info("Starting validation-based training (weather model only)")
+                weather_metrics = training_data.get('weather_metrics', [])
+                labels = training_data.get('labels', [])
+                
+                # Validate that we have data
+                if not weather_metrics or not labels or len(weather_metrics) != len(labels):
+                    return {
+                        'status': 'error',
+                        'message': 'Invalid validation-based training data format'
+                    }
+                
+                # Extract labels
+                tornado_labels = np.array([label.get('tornado', 0) for label in labels], dtype=np.float32)
+                severity_values = np.array([label.get('severity', 0) for label in labels], dtype=np.int32)
+                
+                # One-hot encode severity (0=low, 1=moderate, 2=high, 3=extreme)
+                severity_one_hot = np.zeros((len(severity_values), 4), dtype=np.float32)
+                for i, severity in enumerate(severity_values):
+                    severity_one_hot[i, severity] = 1.0
+                
+                # Convert weather metrics to numpy array
+                weather_array = []
+                for metrics in weather_metrics:
+                    # Extract values in a consistent order
+                    values = [
+                        metrics.get('cape', 0),
+                        metrics.get('helicity', 0),
+                        metrics.get('wind_shear', 0),
+                        metrics.get('storm_motion', 25),
+                        metrics.get('tornadic_probability', 0.1),
+                    ]
+                    weather_array.append(values)
+                
+                weather_array = np.array(weather_array, dtype=np.float32)
+                
+                # Scale the weather data
+                if not hasattr(self, 'weather_scaler') or not isinstance(self.weather_scaler, StandardScaler):
+                    self.weather_scaler = StandardScaler()
+                    weather_array_scaled = self.weather_scaler.fit_transform(weather_array)
+                else:
+                    # Use existing scaler for consistent scaling
+                    weather_array_scaled = self.weather_scaler.transform(weather_array)
+                
+                # Create indices for train/validation split
+                indices = np.arange(len(weather_metrics))
+                np.random.shuffle(indices)
+                
+                split_idx = int(len(indices) * (1 - validation_split))
+                train_idx, val_idx = indices[:split_idx], indices[split_idx:]
+                
+                # Training data
+                train_weather = weather_array_scaled[train_idx]
+                train_tornado = tornado_labels[train_idx]
+                train_severity = severity_one_hot[train_idx]
+                
+                # Validation data
+                val_weather = weather_array_scaled[val_idx]
+                val_tornado = tornado_labels[val_idx]
+                val_severity = severity_one_hot[val_idx]
+                
+                # If we already have a trained weather model, use that as starting point
+                if not self.weather_model:
+                    self._build_model()
+                
+                # Setup callbacks for weather model only
+                callbacks = [
+                    EarlyStopping(
+                        monitor='val_loss',
+                        patience=8,
+                        restore_best_weights=True
+                    )
+                ]
+                
+                # Train only the weather component of the model
+                logger.info(f"Training weather model with {len(train_idx)} samples, validating with {len(val_idx)} samples")
+                
+                # Create inputs and outputs for the weather model
+                weather_input = layers.Input(shape=(train_weather.shape[1],), name='weather_input')
+                weather_dense = layers.Dense(64, activation='relu')(weather_input)
+                weather_dense = layers.Dropout(0.3)(weather_dense)
+                weather_dense = layers.Dense(32, activation='relu')(weather_dense)
+                
+                tornado_prob = layers.Dense(1, activation='sigmoid', name='tornado_probability')(weather_dense)
+                severity_output = layers.Dense(4, activation='softmax', name='severity')(weather_dense)
+                
+                weather_model = layers.Model(inputs=weather_input, outputs=[tornado_prob, severity_output])
+                
+                # Compile the weather model
+                weather_model.compile(
+                    optimizer='adam',
+                    loss={
+                        'tornado_probability': 'binary_crossentropy',
+                        'severity': 'categorical_crossentropy'
+                    },
+                    metrics={
+                        'tornado_probability': 'accuracy',
+                        'severity': 'accuracy'
+                    }
+                )
+                
+                # Train the weather model
+                history = weather_model.fit(
+                    train_weather,
+                    [train_tornado, train_severity],
+                    validation_data=(val_weather, [val_tornado, val_severity]),
+                    epochs=epochs,
+                    batch_size=batch_size,
+                    callbacks=callbacks
+                )
+                
+                # Save the new weather model
+                self.weather_model = weather_model
+                
+                # Update the combined model to use the new weather model
+                if self.radar_model:
+                    # Rebuild combined model with updated weather model
+                    radar_features = self.radar_model.output
+                    weather_features = self.weather_model.layers[-3].output  # Get the features before final outputs
+                    
+                    # Combine the features
+                    combined = layers.Concatenate()([radar_features, weather_features])
+                    combined = layers.Dense(64, activation='relu')(combined)
+                    combined = layers.Dropout(0.3)(combined)
+                    combined = layers.Dense(32, activation='relu')(combined)
+                    
+                    # Final outputs
+                    tornado_output = layers.Dense(1, activation='sigmoid', name='tornado_probability')(combined)
+                    severity_output = layers.Dense(4, activation='softmax', name='severity')(combined)
+                    
+                    # Create combined model
+                    self.combined_model = layers.Model(
+                        inputs=[self.radar_model.input, self.weather_model.input],
+                        outputs=[tornado_output, severity_output]
+                    )
+                    
+                    # Compile the combined model
+                    self.combined_model.compile(
+                        optimizer='adam',
+                        loss={
+                            'tornado_probability': 'binary_crossentropy',
+                            'severity': 'categorical_crossentropy'
+                        },
+                        metrics={
+                            'tornado_probability': 'accuracy',
+                            'severity': 'accuracy'
+                        }
+                    )
+                else:
+                    # Just use the weather model as the combined model if no radar model
+                    self.combined_model = self.weather_model
+                
+                # Save the model
+                self._save_model()
+                
+                # Return training metrics
+                return {
+                    'status': 'success',
+                    'message': 'Weather model trained successfully using validation data',
+                    'metrics': {
+                        'accuracy': history.history['tornado_probability_accuracy'][-1],
+                        'val_accuracy': history.history['val_tornado_probability_accuracy'][-1],
+                        'severity_accuracy': history.history['severity_accuracy'][-1],
+                        'val_severity_accuracy': history.history['val_severity_accuracy'][-1]
+                    },
+                    'epochs_completed': len(history.history['loss'])
+                }
+            
+            # Standard training with both radar and weather data
             radar_images = training_data.get('radar_images', [])
             weather_metrics = training_data.get('weather_metrics', [])
             labels = training_data.get('labels', [])
             
+            # Validate that we have data
             if not radar_images or not weather_metrics or not labels:
-                logger.error("Missing required training data")
-                return {'status': 'error', 'message': 'Missing required training data'}
+                return {
+                    'status': 'error',
+                    'message': 'Missing required training data'
+                }
+                
+            if len(radar_images) != len(weather_metrics) or len(radar_images) != len(labels):
+                return {
+                    'status': 'error',
+                    'message': 'Mismatch in training data sizes'
+                }
             
-            if not (len(radar_images) == len(weather_metrics) == len(labels)):
-                logger.error("Training data arrays must have the same length")
-                return {'status': 'error', 'message': 'Training data arrays must have the same length'}
+            # Extract labels
+            tornado_labels = np.array([label.get('tornado', 0) for label in labels], dtype=np.float32)
+            severity_values = np.array([label.get('severity', 0) for label in labels], dtype=np.int32)
             
-            # Preprocess radar images
-            logger.info("Preprocessing radar images...")
-            processed_radar = []
-            for image in radar_images:
-                processed_radar.append(self.preprocess_radar_image(image)[0])  # Remove batch dimension
-            radar_array = np.array(processed_radar)
+            # One-hot encode severity (0=low, 1=moderate, 2=high, 3=extreme)
+            severity_one_hot = np.zeros((len(severity_values), 4), dtype=np.float32)
+            for i, severity in enumerate(severity_values):
+                severity_one_hot[i, severity] = 1.0
             
-            # Preprocess weather data
-            logger.info("Preprocessing weather data...")
-            weather_features = []
+            # Convert radar images to numpy array
+            radar_array = np.array(radar_images, dtype=np.float32)
+            
+            # Normalize radar images if needed
+            if radar_array.max() > 1.0:
+                radar_array = radar_array / 255.0
+            
+            # Convert weather metrics to numpy array
+            weather_array = []
             for metrics in weather_metrics:
-                # Extract features to match model input
-                features = [
+                # Extract values in a consistent order
+                values = [
                     metrics.get('cape', 0),
                     metrics.get('helicity', 0),
                     metrics.get('wind_shear', 0),
-                    metrics.get('storm_motion', 0),
+                    metrics.get('storm_motion', 25),
                     metrics.get('temperature', 70),
-                    metrics.get('dewpoint', 50),
+                    metrics.get('dewpoint', 60),
                     metrics.get('humidity', 50),
-                    metrics.get('pressure', 1013.25),
+                    metrics.get('pressure', 1010),
                     metrics.get('precipitable_water', 25),
                     metrics.get('lapse_rate', 6.5)
                 ]
-                weather_features.append(features)
+                weather_array.append(values)
             
-            weather_array = np.array(weather_features, dtype=np.float32)
+            weather_array = np.array(weather_array, dtype=np.float32)
             
-            # Fit the scaler to the weather data
-            self.weather_scaler.fit(weather_array)
-            weather_array_scaled = self.weather_scaler.transform(weather_array)
+            # Scale the weather data
+            if not hasattr(self, 'weather_scaler') or not isinstance(self.weather_scaler, StandardScaler):
+                self.weather_scaler = StandardScaler()
+                weather_array_scaled = self.weather_scaler.fit_transform(weather_array)
+            else:
+                # Use existing scaler for consistent scaling
+                weather_array_scaled = self.weather_scaler.transform(weather_array)
             
-            # Prepare labels
-            tornado_labels = np.array([label.get('tornado', 0) for label in labels])
+            # Create indices for train/validation split
+            indices = np.arange(len(radar_images))
+            np.random.shuffle(indices)
             
-            # Convert severity categories to one-hot encoding
-            severity_labels = np.array([label.get('severity', 0) for label in labels])
-            severity_one_hot = tf.keras.utils.to_categorical(severity_labels, num_classes=4)
-            
-            # Train-validation split
-            indices = np.random.permutation(len(labels))
             split_idx = int(len(indices) * (1 - validation_split))
             train_idx, val_idx = indices[:split_idx], indices[split_idx:]
             
-            # Training data
+            # Build the model if it doesn't exist
+            if not self.combined_model:
+                self._build_model()
+            
+            # Get training and validation data
             train_radar = radar_array[train_idx]
             train_weather = weather_array_scaled[train_idx]
             train_tornado = tornado_labels[train_idx]
