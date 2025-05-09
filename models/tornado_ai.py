@@ -390,20 +390,20 @@ class TornadoAI:
                 # Use multiplicative formula but with square root to moderate extremes
                 raw_prob = (h_factor * c_factor * s_factor) ** 0.5
                 
-                # Scale to a more reasonable range (0.3 to 0.8) rather than forcing to 0.95
-                forced_probability = 0.3 + (raw_prob * 0.5)
+                # Scale to match our new threshold range (0.1 to 0.7)
+                forced_probability = 0.1 + (raw_prob * 0.6)
                 
                 # Only override if our calculated value is higher than model's prediction
                 if forced_probability > tornado_probability:
                     tornado_probability = forced_probability
                     
-                    # Choose severity level based on actual values, not forcing to extreme
-                    if helicity >= 250 and cape >= 2500 and wind_shear >= 40:
-                        severity_index = max(severity_index, 3)  # Force extreme risk only for truly extreme conditions
+                    # Choose severity level based on actual values, aligned with new thresholds
+                    if helicity >= 300 and cape >= 3000 and wind_shear >= 45:
+                        severity_index = max(severity_index, 3)  # Extreme (70%+): Requires truly extreme conditions
+                    elif helicity >= 250 and cape >= 2500 and wind_shear >= 35:
+                        severity_index = max(severity_index, 2)  # High (50-69%): Requires very strong conditions
                     elif helicity >= 200 and cape >= 2000:
-                        severity_index = max(severity_index, 2)  # Force high risk for strong conditions
-                    elif helicity >= 150:
-                        severity_index = max(severity_index, 1)  # Force moderate risk for moderate conditions
+                        severity_index = max(severity_index, 1)  # Moderate (30-49%): Requires moderate conditions
                     
                     # Log that we're applying a forced override
                     logger.info(f"OVERRIDE: Applied balanced probability {forced_probability:.2f} due to helicity={helicity}, CAPE={cape}, wind_shear={wind_shear}")
@@ -413,38 +413,48 @@ class TornadoAI:
             # Apply meteorological constraints based on known tornado formation conditions
             # These thresholds are based on meteorological research
             
-            # CAPE constraints - MAKE MORE CONSERVATIVE
-            if cape < 500:  # Increased from 300
-                tornado_probability = min(tornado_probability, 0.25)  # Reduced from 0.3
-                severity_index = min(severity_index, 1)  # Force low severity
-            elif cape < 1000:  # Increased from 800
-                tornado_probability = min(tornado_probability, 0.4)  # Reduced from 0.5
+            # CAPE constraints - UPDATED FOR NEW THRESHOLDS
+            if cape < 800:
+                tornado_probability = min(tornado_probability, 0.1)  # Cap at Very Low (<10%)
+                severity_index = min(severity_index, 0)  # Force very low severity
+            elif cape < 1500:
+                tornado_probability = min(tornado_probability, 0.3)  # Cap at Low (10-29%)
+                severity_index = min(severity_index, 1)  # Cap at low severity
+            elif cape < 2500:
+                tornado_probability = min(tornado_probability, 0.5)  # Cap at Moderate (30-49%)
                 severity_index = min(severity_index, 2)  # Cap at moderate severity
             
-            # Helicity constraints - MAKE MORE CONSERVATIVE
-            if helicity < 50:  # Increased from 30
-                tornado_probability = min(tornado_probability, 0.15)  # Reduced from 0.2
-                severity_index = min(severity_index, 1)  # Force low severity
-            elif helicity < 150:  # Increased from 100
-                tornado_probability = min(tornado_probability, 0.35)  # Reduced from 0.4
+            # Helicity constraints - UPDATED FOR NEW THRESHOLDS
+            if helicity < 100:
+                tornado_probability = min(tornado_probability, 0.1)  # Cap at Very Low (<10%)
+                severity_index = min(severity_index, 0)  # Force very low severity
+            elif helicity < 200:
+                tornado_probability = min(tornado_probability, 0.3)  # Cap at Low (10-29%)
+                severity_index = min(severity_index, 1)  # Cap at low severity
+            elif helicity < 300:
+                tornado_probability = min(tornado_probability, 0.5)  # Cap at Moderate (30-49%)
                 severity_index = min(severity_index, 2)  # Cap at moderate severity
             
-            # Wind shear constraints - MAKE MORE CONSERVATIVE
-            if wind_shear < 15:  # Increased from 10
-                tornado_probability = min(tornado_probability, 0.2)  # Reduced from 0.3
-                severity_index = min(severity_index, 1)  # Force low severity
-            elif wind_shear < 25:  # Increased from 20
-                tornado_probability = min(tornado_probability, 0.5)  # Reduced from 0.6
+            # Wind shear constraints - UPDATED FOR NEW THRESHOLDS
+            if wind_shear < 20:
+                tornado_probability = min(tornado_probability, 0.1)  # Cap at Very Low (<10%)
+                severity_index = min(severity_index, 0)  # Force very low severity
+            elif wind_shear < 30:
+                tornado_probability = min(tornado_probability, 0.3)  # Cap at Low (10-29%)
+                severity_index = min(severity_index, 1)  # Cap at low severity
+            elif wind_shear < 40:
+                tornado_probability = min(tornado_probability, 0.5)  # Cap at Moderate (30-49%)
                 severity_index = min(severity_index, 2)  # Cap at moderate severity
             
-            # Combined constraint - MAKE MORE CONSERVATIVE
-            if cape < 1500 or helicity < 150 or wind_shear < 25:  # Increased thresholds
-                tornado_probability = min(tornado_probability, 0.7)  # Reduced from 0.8
+            # Combined constraint - UPDATED FOR NEW THRESHOLDS
+            if cape < 2000 or helicity < 200 or wind_shear < 30:
+                tornado_probability = min(tornado_probability, 0.5)  # Cap at Moderate (30-49%)
                 severity_index = min(severity_index, 2)  # Cap at moderate
             
-            # Extreme risk - MAKE MORE CONSERVATIVE
-            if cape < 2500 or helicity < 250 or wind_shear < 35:  # Increased from 2000/200/30
-                severity_index = min(severity_index, 2)  # Cap at high (was 3/extreme)
+            # Extreme risk - UPDATED FOR NEW THRESHOLDS
+            if cape < 3000 or helicity < 300 or wind_shear < 45:
+                tornado_probability = min(tornado_probability, 0.7)  # Cap at High (50-69%)
+                severity_index = min(severity_index, 3)  # Cap at high
             
             # Override severity label based on our constraints
             severity_label = severity_mapping.get(severity_index, 'unknown')

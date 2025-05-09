@@ -1143,15 +1143,15 @@ def get_tornado_risk_level(tornadic_probability):
     """Convert tornadic probability to a risk level."""
     if tornadic_probability < 0.005:
         return "None"
-    elif tornadic_probability < 0.03:  # Lowered from 0.05
+    elif tornadic_probability < 0.1:  # Very Low: <10%
         return "Very Low" 
-    elif tornadic_probability < 0.1:   # Lowered from 0.2
+    elif tornadic_probability < 0.3:  # Low: 10-29%
         return "Low"
-    elif tornadic_probability < 0.25:  # Lowered from 0.4  
+    elif tornadic_probability < 0.5:  # Moderate: 30-49%
         return "Moderate"
-    elif tornadic_probability < 0.5:   # Lowered from 0.7
+    elif tornadic_probability < 0.7:  # High: 50-69%
         return "High"
-    else:
+    else:                             # Extreme: 70%+
         return "Extreme"
 
 def generate_risk_summary(weather_metrics, weather_data):
