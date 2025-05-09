@@ -316,6 +316,9 @@ A: We've updated the system to maintain your current view rather than automatica
 #### Q: How can I report bugs or suggest features?
 A: Please submit issues to our GitHub repository or contact us through the About page. We appreciate your feedback and are continuously working to improve the system.
 
+#### Q: Why do I sometimes see "data is undefined" errors with NWS weather alerts?
+A: This was caused by a JavaScript bug with duplicate handlers in the fetch request. We've fixed this issue in the latest version by removing duplicate code blocks and adding a retry mechanism that automatically attempts to reload the data if this error occurs. If you're still experiencing this issue, try clicking the refresh button in the alerts panel or selecting "All" in the alert filters.
+
 ## Technical Stack
 
 - **Backend**: Flask (Python)

@@ -2244,31 +2244,6 @@
                         return;
                     }
                     
-                    // Filter and display alerts
-                    filterAlerts();
-                })
-                .then(data => {
-                    // Update the last updated timestamp
-                    const formattedTime = new Date().toLocaleTimeString();
-                    document.getElementById('lastUpdated').textContent = `Last updated: ${formattedTime}`;
-                    
-                    // Process and display alerts
-                    const alerts = data.alerts || [];
-                    
-                    // Store alerts globally to support filtering
-                    window.allAlerts = alerts;
-                    
-                    if (alerts.length === 0) {
-                        alertsContainer.innerHTML = `
-                            <div class="text-center py-3">
-                                <div class="mb-2"><i class="fa-solid fa-check-circle text-success"></i></div>
-                                <div>No active weather alerts</div>
-                            </div>
-                        `;
-                        updateLegend(); // Update the legend even if no alerts
-                        return;
-                    }
-                    
                     // Restore previous filter selections if they exist
                     if (currentFilters && currentFilters.length > 0) {
                         // First uncheck all filters
