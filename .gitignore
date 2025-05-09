@@ -71,3 +71,5 @@ predictions.db
 # Nginx SSL
 nginx/ssl/server.crt
 nginx/ssl/server.key
+templates/tornado.html.bak
+tornado_predictions.db.bak
