@@ -1523,7 +1523,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             initMap();
             displayPredictions();
-            loadWeatherAlerts();
+            
+            // Delay loading alerts to ensure backend is ready
+            setTimeout(() => {
+                loadWeatherAlerts();
+            }, 1000);
             
             // Add refresh button event listener
             document.getElementById('alertsRefreshBtn').addEventListener('click', function() {
@@ -2284,13 +2288,41 @@
                 })
                 .catch(error => {
                     console.error('Error fetching alerts:', error);
+                    
+                    // Special handling for "data is undefined" error
+                    if (error.toString().includes('data is undefined')) {
+                        console.log('Data is undefined, retrying in 2 seconds...');
+                        alertsContainer.innerHTML = `
+                            <div class="text-center py-3">
+                                <div class="mb-2"><i class="fa-solid fa-sync fa-spin text-info"></i></div>
+                                <div>Loading alerts...</div>
+                                <div class="small mt-2">Initializing data, please wait.</div>
+                            </div>
+                        `;
+                        
+                        // Retry after a short delay
+                        setTimeout(() => {
+                            loadWeatherAlerts();
+                        }, 2000);
+                        return;
+                    }
+                    
+                    // Regular error handling
                     alertsContainer.innerHTML = `
                         <div class="text-center py-3">
                             <div class="mb-2"><i class="fa-solid fa-exclamation-triangle text-warning"></i></div>
                             <div>Error loading alerts</div>
-                            <div class="small mt-2">Please try again later.</div>
+                            <div class="small mt-2">Please try again later or click "All" to reload.</div>
+                            <button id="retryAlertsBtn" class="btn btn-sm btn-outline-info mt-2">
+                                <i class="fa-solid fa-sync"></i> Retry
+                            </button>
                         </div>
                     `;
+                    
+                    // Add retry button event listener
+                    document.getElementById('retryAlertsBtn')?.addEventListener('click', () => {
+                        loadWeatherAlerts();
+                    });
                 });
         }
 
