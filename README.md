@@ -8,6 +8,21 @@ CALM (Climate Assessment & Logging Monitor) is a state-of-the-art web applicatio
 
 ![Tornado Predictions](/assets/calmTornado.png)
 
+## Table of Contents
+- [Vision](#vision)
+- [Features](#features)
+- [Coming Soon](#coming-soon)
+- [AI Model Architecture](#ai-model-architecture)
+- [Radar Pattern Recognition](#radar-pattern-recognition)
+- [Installation & Setup](#installation--setup)
+- [API Endpoints](#api-endpoints)
+- [Data Sources](#data-sources)
+- [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
+- [Technical Stack](#technical-stack)
+- [License](#license)
+- [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
+
 ## Vision
 
 The vision for CALM is to create an accessible, accurate, and real-time tornado prediction system that:
